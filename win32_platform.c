@@ -33,7 +33,7 @@ LRESULT window_callback (HWND window, UINT message, WPARAM w_param, LPARAM l_par
 		case WM_SIZE: {
 			// Get width and height
 			RECT rect;
-			GetWindowRect(window, &rect);
+			GetClientRect(window, &rect);
 			render_buffer.width = rect.right - rect.left;
 			render_buffer.height = rect.bottom - rect.top;
 

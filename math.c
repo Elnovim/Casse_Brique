@@ -5,6 +5,19 @@ clamp(int min, int val, int max) {
 	return val;
 }
 
+// Lerp
+inline f32
+lerp (f32 a, f32 t, f32 b) {
+	return (1-t)*a + t*b;
+}
+
+// Absolute of f32
+inline f32
+absf(f32 a) {
+	if (a < 0) return -a;
+	return a;
+}
+
 // Color
 inline u32
 make_color_from_grey(u8 grey) {
