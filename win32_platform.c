@@ -170,7 +170,7 @@ if (vk_code == vk) {\
 		LARGE_INTEGER current_counter;
 		QueryPerformanceCounter(&current_counter);
 
-		last_dt = (f32)(current_counter.QuadPart - last_counter.QuadPart) / frequency_counter;
+		last_dt = min(.1f, (f32)(current_counter.QuadPart - last_counter.QuadPart) / frequency_counter);
 
 		last_counter = current_counter;
 	}
