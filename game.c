@@ -26,44 +26,119 @@ b32 initialized = false;
 
 #include "collision.c"
 
+enum {
+	GM_NORMAL,
+	GM_WALL,
+	GM_CONSTRUCTION,
+	/*GM_SPACED,
+	GM_PONG,*/
+
+	GM_COUNT,
+} typedef Game_Mode;
+
+Game_Mode current_game_mode;
+
+internal void
+restart_game(){
+
+	if (current_game_mode >= GM_COUNT) current_game_mode = 0;
+	else if (current_game_mode < 0) current_game_mode = GM_COUNT-1;
+	ball_base_speed = 50;
+	ball_dp.x = 0;
+	ball_dp.y = -ball_base_speed;
+	ball_p.x = 0;
+	ball_p.y = 40;
+	ball_half_size = (v2){.75, .75};
+	ball_speed_multiplier = 1.f;
+
+	player_p.y = -35;
+	player_half_size = (v2){10, 2};
+
+	arena_half_size = (v2){85, 45};
+	first_ball_movement = true;
+
+	next_block = 0;
+	for (Block *block = blocks; block != blocks+array_count(blocks); block++) {
+		block->life = 0;
+	}
+
+	switch(current_game_mode) {
+		case GM_NORMAL: {
+			int num_x = 20;
+			int num_y = 9;
+			f32 x_offset = (f32)num_x * 4 - 4;
+			f32 y_offset = -4.f;
+			for (int y = 0; y < num_y; ++y) {
+				for (int x = 0; x < num_x; ++x) {
+					Block *block = blocks+next_block++;
+					if (next_block >= array_count(blocks)) {
+						next_block = 0;
+					}
+					block->life = 1;
+					block->half_size = (v2){4, 2};
+					block->p.x = x*4.f*2.0f - x_offset;
+					block->p.y = y*block->half_size.y*2.0f - y_offset;
+					block->color = make_color_from_grey(y*255/num_y);
+					block->ball_speed_multiplier = 1+ (f32)y*1.25f/(f32)num_y;
+				}
+			}
+		} break;
+
+		case GM_WALL: {
+			int num_x = 19;
+			int num_y = 9;
+			f32 x_offset = (f32)num_x * 4 * 1.1f - 4;
+			f32 y_offset = -5.f;
+			for (int y = 0; y < num_y; ++y) {
+				for (int x = 0; x < num_x; ++x) {
+					Block *block = blocks+next_block++;
+					if (next_block >= array_count(blocks)) {
+						next_block = 0;
+					}
+					block->life = 1;
+					block->half_size = (v2){4, 2};
+					block->p.x = x*block->half_size.x*2.2f - x_offset;
+					block->p.y = y*block->half_size.y*2.2f - y_offset;
+					block->color = make_color_from_grey(y*255/num_y);
+					block->ball_speed_multiplier = 1+ (f32)y*1.25f/(f32)num_y;
+				}
+			}
+		} break;
+
+		case GM_CONSTRUCTION: {
+
+			int num_x = 21;
+			int num_y = 6;
+			f32 x_offset = (f32)num_x * 4 - 4;
+			f32 y_offset = 0;
+			for (int y = 0; y < num_y; ++y) {
+				for (int x = 0; x < num_x; ++x) {
+					Block *block = blocks+next_block++;
+					if (next_block >= array_count(blocks)) {
+						next_block = 0;
+					}
+					block->life = 1;
+					block->half_size = (v2){4, 2};
+					block->p.x = x*block->half_size.x*2.0f - x_offset;
+					block->p.y = y*block->half_size.y*4.f - y_offset;
+					block->color = make_color_from_grey(y*255/num_y);
+					block->ball_speed_multiplier = 1+ (f32)y*1.25f/(f32)num_y;
+				}
+			}
+		} break;
+
+		invalid_default_case;
+	}
+}
+
+
 internal void
 simulate_game(Input *input, f32 dt) {
 
 	if (!initialized) {
 		initialized = true;
-		ball_base_speed = 50;
-		ball_dp.y = -ball_base_speed;
-		ball_p.y = 40;
-		ball_half_size = (v2){.75, .75};
-		ball_speed_multiplier = 1.f;
-
-		player_p.y = -35;
-		player_half_size = (v2){10, 2};
-
-		arena_half_size = (v2){85, 45};
-		first_ball_movement = true;
-
-#define num_x 19
-#define num_y 9
-		f32 x_offset = num_x*4;;
-		f32 y_offset = -5.f;
-		for (int y = 0; y < num_y; ++y) {
-			for (int x = 0; x < num_x; ++x) {
-				Block *block = blocks+next_block++;
-				if (next_block >= array_count(blocks)) {
-					next_block = 0;
-				}
-
-				block->life = 1;
-				block->half_size = (v2){4, 2};
-				block->p.y = y*block->half_size.y*2.1f - y_offset;
-				block->color = make_color_from_grey(y*255/num_y);
-				block->ball_speed_multiplier = 1+ (f32)y*1.25f/(f32)num_y;
-				if (y % 2) block->p.x = x*block->half_size.x*2.1f - x_offset;
-				else block->p.x = x*block->half_size.x*2.1f - x_offset - block->half_size.x;
-
-			}
-		}
+		Game_Mode current_game_mode = 0;
+		restart_game();
 	}
 
 	v2 player_desired_p;
@@ -91,12 +166,6 @@ simulate_game(Input *input, f32 dt) {
 
 	if (ball_desired_p.y + ball_half_size.y > arena_half_size.y) {
 		ball_desired_p.y = arena_half_size.y - ball_half_size.y;
-		ball_dp.y *= -1;
-	}
-
-	// Game over
-	if (ball_desired_p.y - ball_half_size.y < -arena_half_size.y) {
-		ball_desired_p.y = -arena_half_size.y + ball_half_size.y;
 		ball_dp.y *= -1;
 	}
 
@@ -157,4 +226,14 @@ simulate_game(Input *input, f32 dt) {
 
 	draw_rect(ball_p, ball_half_size, 0x00ffff);
 	draw_rect(player_p, player_half_size, 0x00ff00);
+
+		// Game over
+	if (ball_desired_p.y - ball_half_size.y < -50) {
+		restart_game(0);
+	}
+
+#if DEVELOPMENT
+	if (pressed(BUTTON_LEFT)) restart_game(--current_game_mode);
+	if (pressed(BUTTON_RIGHT)) restart_game(++current_game_mode);
+#endif
 }
