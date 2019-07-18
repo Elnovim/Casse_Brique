@@ -143,6 +143,7 @@ if (vk_code == vk) {\
 
 		POINT mouse_pointer;
 		GetCursorPos(&mouse_pointer);
+		ShowCursor(false);
 		ScreenToClient(window, &mouse_pointer);
 
 		input.mouse.x = mouse_pointer.x;

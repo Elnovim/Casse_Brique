@@ -26,12 +26,32 @@ b32 initialized = false;
 
 #include "collision.c"
 
+internal void
+create_blocks(int num_x, int num_y, v2 block_half_size, f32 spacing_x, f32 spacing_y, f32 offset) {
+	f32 x_offset = (f32)num_x * block_half_size.x * (1.f+spacing_x/2.f) - block_half_size.x;
+	f32 y_offset = offset;
+	for (int y = 0; y < num_y; ++y) {
+		for (int x = 0; x < num_x; ++x) {
+			Block *block = blocks+next_block++;
+			if (next_block >= array_count(blocks)) {
+				next_block = 0;
+			}
+			block->life = 1;
+			block->half_size = block_half_size;
+			block->p.x = x*block->half_size.x*(2.f+spacing_x) - x_offset;
+			block->p.y = y*block->half_size.y*(2.f+spacing_y) - y_offset;
+			block->color = make_color_from_grey(y*255/num_y);
+			block->ball_speed_multiplier = 1+ (f32)y*1.25f/(f32)num_y;
+		}
+	}
+}
+
 enum {
 	GM_NORMAL,
 	GM_WALL,
 	GM_CONSTRUCTION,
-	/*GM_SPACED,
-	GM_PONG,*/
+	GM_SPACED,
+	/*GM_PONG,*/
 
 	GM_COUNT,
 } typedef Game_Mode;
@@ -64,67 +84,20 @@ restart_game(){
 
 	switch(current_game_mode) {
 		case GM_NORMAL: {
-			int num_x = 20;
-			int num_y = 9;
-			f32 x_offset = (f32)num_x * 4 - 4;
-			f32 y_offset = -4.f;
-			for (int y = 0; y < num_y; ++y) {
-				for (int x = 0; x < num_x; ++x) {
-					Block *block = blocks+next_block++;
-					if (next_block >= array_count(blocks)) {
-						next_block = 0;
-					}
-					block->life = 1;
-					block->half_size = (v2){4, 2};
-					block->p.x = x*4.f*2.0f - x_offset;
-					block->p.y = y*block->half_size.y*2.0f - y_offset;
-					block->color = make_color_from_grey(y*255/num_y);
-					block->ball_speed_multiplier = 1+ (f32)y*1.25f/(f32)num_y;
-				}
-			}
+			create_blocks(20, 9, (v2){4, 2}, 0, 0, -4.f);
+			
 		} break;
 
 		case GM_WALL: {
-			int num_x = 19;
-			int num_y = 9;
-			f32 x_offset = (f32)num_x * 4 * 1.1f - 4;
-			f32 y_offset = -5.f;
-			for (int y = 0; y < num_y; ++y) {
-				for (int x = 0; x < num_x; ++x) {
-					Block *block = blocks+next_block++;
-					if (next_block >= array_count(blocks)) {
-						next_block = 0;
-					}
-					block->life = 1;
-					block->half_size = (v2){4, 2};
-					block->p.x = x*block->half_size.x*2.2f - x_offset;
-					block->p.y = y*block->half_size.y*2.2f - y_offset;
-					block->color = make_color_from_grey(y*255/num_y);
-					block->ball_speed_multiplier = 1+ (f32)y*1.25f/(f32)num_y;
-				}
-			}
+			create_blocks(19, 9, (v2){4, 2}, .2f, .2f, -4.f);
 		} break;
 
 		case GM_CONSTRUCTION: {
+			create_blocks(21, 6, (v2){4, 2}, 0, 2.f, 0.f);
+		} break;
 
-			int num_x = 21;
-			int num_y = 6;
-			f32 x_offset = (f32)num_x * 4 - 4;
-			f32 y_offset = 0;
-			for (int y = 0; y < num_y; ++y) {
-				for (int x = 0; x < num_x; ++x) {
-					Block *block = blocks+next_block++;
-					if (next_block >= array_count(blocks)) {
-						next_block = 0;
-					}
-					block->life = 1;
-					block->half_size = (v2){4, 2};
-					block->p.x = x*block->half_size.x*2.0f - x_offset;
-					block->p.y = y*block->half_size.y*4.f - y_offset;
-					block->color = make_color_from_grey(y*255/num_y);
-					block->ball_speed_multiplier = 1+ (f32)y*1.25f/(f32)num_y;
-				}
-			}
+		case GM_SPACED: {
+			create_blocks(10, 6, (v2){4, 2}, 2.f, 2.f, 0.f);
 		} break;
 
 		invalid_default_case;
