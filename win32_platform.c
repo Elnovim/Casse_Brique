@@ -78,8 +78,8 @@ int WinMain(HINSTANCE hInstance,
 								   window_class.lpszClassName,
 								   "CasseBrique",
 								   WS_VISIBLE|WS_OVERLAPPEDWINDOW,
-								   CW_USEDEFAULT,
-								   CW_USEDEFAULT,
+								   320,
+								   180,
 								   1280, 
 								   720,
 								   0,
@@ -90,6 +90,9 @@ int WinMain(HINSTANCE hInstance,
 	HDC hdc = GetDC(window);
 
 	Input input = {0};
+
+	int display_size_ind = 0;
+	int display_sizes[DISPLAY_SIZE_COUNT][2] = {{1920, 1080}, {1280, 720}};
 
 	LARGE_INTEGER last_counter;
 	QueryPerformanceCounter(&last_counter);
@@ -131,6 +134,8 @@ if (vk_code == vk) {\
 					process_button(VK_RIGHT, BUTTON_RIGHT);
 					process_button(VK_UP, BUTTON_UP);
 					process_button(VK_DOWN, BUTTON_DOWN);
+					process_button(VK_ESCAPE, BUTTON_ESC);
+					process_button(VK_F5, BUTTON_F5);
 
 				} break;
 
@@ -150,7 +155,7 @@ if (vk_code == vk) {\
 		input.mouse.y = render_buffer.height-mouse_pointer.y;
 
 		//Simulation
-		simulate_game(&input, last_dt);
+		simulate_game(&input, last_dt, &running);
 
 		//Render
 		StretchDIBits(hdc,
@@ -166,6 +171,13 @@ if (vk_code == vk) {\
 					  &render_buffer.bitmap_info,
 					  DIB_RGB_COLORS,
 					  SRCCOPY);
+
+		if (input.buttons[BUTTON_F5].is_down && input.buttons[BUTTON_F5].changed) {
+			display_size_ind = (display_size_ind + 1) % DISPLAY_SIZE_COUNT;
+			int width = display_sizes[display_size_ind][0];
+			int height = display_sizes[display_size_ind][1];
+			SetWindowPos(window, HWND_TOP, (1920-width)/2, (1080-height)/2, width, height, SWP_SHOWWINDOW);
+		}
 
 		//Get the frame time
 		LARGE_INTEGER current_counter;

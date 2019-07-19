@@ -3,15 +3,23 @@ struct {
 	b32 changed;
 } typedef Button;
 
+enum {
+	FULL_SCREEN,
+	WINDOWED,
+
+	DISPLAY_SIZE_COUNT,
+};
+
 
 enum {
 	BUTTON_LEFT,
 	BUTTON_RIGHT,
 	BUTTON_UP,
 	BUTTON_DOWN,
+	BUTTON_ESC,
+	BUTTON_F5,
 
 	BUTTON_COUNT,
-
 };
 
 struct {
