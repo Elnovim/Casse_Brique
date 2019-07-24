@@ -7,82 +7,114 @@ is_colliding(v2 p1, v2 half_size1, v2 p2, v2 half_size2) {
 		   p1.x - half_size1.x < p2.x + half_size2.x;
 }
 
+inline b32
+is_player_colliding_left_arena() {
+	if (player_desired_p.x - player_half_size.x < -arena_half_size.x) return true;
+	return false;
+}
+
+inline b32
+is_player_colliding_right_arena() {
+	if (player_desired_p.x + player_half_size.x > arena_half_size.x) return true;
+	return false;
+}
+
 inline void
-ball_colliding_arena(v2 *ball_desired_p) {
-	if (ball_desired_p->x + ball_half_size.x > arena_half_size.x) {
-		ball_desired_p->x = arena_half_size.x - ball_half_size.x;
-		ball_dp.x *= -1;
+ball_colliding_arena(Ball *ball) {
+	if (ball->desired_p.x + ball->half_size.x > arena_half_size.x) {
+		ball->desired_p.x = arena_half_size.x - ball->half_size.x;
+		ball->dp.x *= -1;
 	}
-	else if (ball_desired_p->x - ball_half_size.x < -arena_half_size.x) {
-		ball_desired_p->x = -arena_half_size.x + ball_half_size.x;
-		ball_dp.x *= -1;
-	}
-
-	if (ball_desired_p->y + ball_half_size.y > arena_half_size.y) {
-		ball_desired_p->y = arena_half_size.y - ball_half_size.y;
-		ball_dp.y *= -1;
+	else if (ball->desired_p.x - ball->half_size.x < -arena_half_size.x) {
+		ball->desired_p.x = -arena_half_size.x + ball->half_size.x;
+		ball->dp.x *= -1;
 	}
 
-	if (invicible) {
-		if (ball_desired_p->y - ball_half_size.y < -arena_half_size.y) {
-			ball_desired_p->y = -arena_half_size.y + ball_half_size.y;
-			ball_dp.y *= -1;
+	if (ball->desired_p.y + ball->half_size.y > arena_half_size.y) {
+		ball->desired_p.y = arena_half_size.y - ball->half_size.y;
+		ball->dp.y *= -1;
+		if (is_comet) is_comet = false;
+	}
+
+	if (first_ball_movement || invicibility_time > 0.f) {
+		if (ball->desired_p.y - ball->half_size.y < -arena_half_size.y) {
+			ball->desired_p.y = -arena_half_size.y + ball->half_size.y;
+			ball->dp.y *= -1;
 		}
 	}
 }
 
 inline void
-ball_colliding_player(v2 *ball_desired_p) {
-	if (ball_dp.y < 0 && is_colliding(player_p, player_half_size, *ball_desired_p, ball_half_size)) {
+ball_colliding_player(Ball *ball) {
+	if (ball->dp.y < 0 && is_colliding(player_p, player_half_size, ball->desired_p, ball->half_size)) {
 		first_ball_movement = false;
 		// Player collision with ball
-		ball_dp.y *= -1;
-		ball_dp.x = (ball_p.x - player_p.x)*7.5f;
-		ball_dp.x += clamp(-25, player_dp.x*.5f, 25);
-		ball_dp.x = (ball_p.x - player_p.x)*7.5f;
-		ball_desired_p->y = player_p.y + player_half_size.y;
+		ball->dp.y *= -1;
+		ball->dp.x = (ball->p.x - player_p.x)*7.5f;
+		ball->dp.x += clamp(-25, player_dp.x*.5f, 25);
+		ball->dp.x = (ball->p.x - player_p.x)*7.5f;
+		ball->desired_p.y = player_p.y + player_half_size.y;
+
+		if (number_of_triple_shots) {
+			--number_of_triple_shots;
+			spawn_triple_shot();
+		}
+		if (number_of_comet > 0) {
+			--number_of_comet;
+			is_comet = true;
+		}
 	}
 }
 
 inline void
-ball_colliding_block(v2 ball_desired_p, Block *block) {
-	f32 diff = ball_desired_p.y - ball_p.y;
+ball_colliding_block(Ball *ball, Block *block) {
+	f32 diff = ball->desired_p.y - ball->p.y;
 	if (diff != 0) {
 		f32 collision_point;
-		if (ball_dp.y > 0) collision_point = block->p.y - block->half_size.y - ball_half_size.y;
-		else collision_point = block->p.y + block->half_size.y + ball_half_size.y;
-		f32 t_y = (collision_point - ball_p.y) / diff;
+		if (ball->dp.y > 0) collision_point = block->p.y - block->half_size.y - ball->half_size.y;
+		else collision_point = block->p.y + block->half_size.y + ball->half_size.y;
+		f32 t_y = (collision_point - ball->p.y) / diff;
 		if (t_y >= 0.f && t_y <= 1.f) {
-			f32 target_x = lerp(ball_p.x, t_y, ball_desired_p.x);
-			if (target_x + ball_half_size.x > block->p.x - block->half_size.x &&
-				target_x - ball_half_size.x < block->p.x + block->half_size.x) {
-					ball_desired_p.y = lerp(ball_p.y, t_y, ball_desired_p.y);
-					if (block->ball_speed_multiplier > ball_speed_multiplier) ball_speed_multiplier = block->ball_speed_multiplier;
-					if (ball_dp.y > 0) ball_dp.y = -ball_base_speed * ball_speed_multiplier;
-					else ball_dp.y = ball_base_speed * ball_speed_multiplier;
+			f32 target_x = lerp(ball->p.x, t_y, ball->desired_p.x);
+			if (target_x + ball->half_size.x > block->p.x - block->half_size.x &&
+				target_x - ball->half_size.x < block->p.x + block->half_size.x) {
+				ball->desired_p.y = lerp(ball->p.y, t_y, ball->desired_p.y);
+				if (block->ball_speed_multiplier > ball->speed_multiplier) ball->speed_multiplier = block->ball_speed_multiplier;
+				if (ball->dp.y > 0) {
+					if (ball->flags & BALL_DESTROYED_ON_DP_Y_DOWN) ball->flags &= ~BALL_ACTIVE;
+					if (!is_comet) ball->dp.y = -ball->base_speed * ball->speed_multiplier;
+				}
+				else ball->dp.y = ball->base_speed * ball->speed_multiplier;
+				if (strong_blocks_time == 0) {
 					--block->life;
-					block_destroyed(block);
+					if (!block->life) block_destroyed(block);
+				}
 			}
 		}
 	}
 
-	diff = ball_desired_p.x - ball_p.x;
+	diff = ball->desired_p.x - ball->p.x;
 	if (diff != 0) {
 		f32 collision_point;
-		if (ball_dp.x > 0) collision_point = block->p.x - block->half_size.x - ball_half_size.x;
-		else collision_point = block->p.x + block->half_size.x + ball_half_size.x;
-		f32 t_x = (collision_point - ball_p.x) / diff;
+		if (ball->dp.x > 0) collision_point = block->p.x - block->half_size.x - ball->half_size.x;
+		else collision_point = block->p.x + block->half_size.x + ball->half_size.x;
+		f32 t_x = (collision_point - ball->p.x) / diff;
 		if (t_x >= 0.f && t_x <= 1.f) {
-			f32 target_y = lerp(ball_p.y, t_x, ball_desired_p.y);
-			if (target_y + ball_half_size.y > block->p.y - block->half_size.y &&
-				target_y - ball_half_size.y < block->p.y + block->half_size.y) {
-					ball_desired_p.x = lerp(ball_p.x, t_x, ball_desired_p.x);
-					ball_dp.x *= -1;
-					if (block->ball_speed_multiplier > ball_speed_multiplier) ball_speed_multiplier = block->ball_speed_multiplier;
-					if (ball_dp.y > 0) ball_dp.y = ball_base_speed * ball_speed_multiplier;
-					else ball_dp.y = -ball_base_speed * ball_speed_multiplier;
+			f32 target_y = lerp(ball->p.y, t_x, ball->desired_p.y);
+			if (target_y + ball->half_size.y > block->p.y - block->half_size.y &&
+				target_y - ball->half_size.y < block->p.y + block->half_size.y) {
+				ball->desired_p.x = lerp(ball->p.x, t_x, ball->desired_p.x);
+				ball->dp.x *= -1;
+				if (block->ball_speed_multiplier > ball->speed_multiplier) ball->speed_multiplier = block->ball_speed_multiplier;
+				if (ball->dp.y > 0) {
+					if (ball->flags & BALL_DESTROYED_ON_DP_Y_DOWN) ball->flags &= ~BALL_ACTIVE;
+					ball->dp.y = ball->base_speed * ball->speed_multiplier;
+				}
+				else ball->dp.y = -ball->base_speed * ball->speed_multiplier;
+				if (strong_blocks_time == 0) {
 					--block->life;
-					block_destroyed(block);
+					if (!block->life) block_destroyed(block);
+				}
 			}
 		}
 	}

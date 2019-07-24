@@ -4,8 +4,9 @@ struct {
 } typedef Button;
 
 enum {
-	FULL_SCREEN,
-	WINDOWED,
+	DISPLAY_QHD,
+	DISPLAY_FHD,
+	DISPLAY_HD,
 
 	DISPLAY_SIZE_COUNT,
 };
@@ -23,7 +24,8 @@ enum {
 };
 
 struct {
-	v2i mouse;
+	v2i mouse_p;
+	v2i mouse_dp;
 	Button buttons[BUTTON_COUNT];
 } typedef Input;
 

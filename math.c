@@ -62,3 +62,18 @@ struct {
 		int e[2];
 	};
 } typedef v2i;
+
+inline v2i
+add_v2i(v2i a, v2i b) {
+	return (v2i){a.x + b.x, a.y + b.y};
+}
+
+inline v2i
+sub_v2i(v2i a, v2i b) {
+	return (v2i){a.x - b.x, a.y - b.y};
+}
+
+inline v2i
+mul_v2i(v2i a, f32 s) {
+	return (v2i){s * a.x, s * a.y};
+}

@@ -20,6 +20,12 @@ global_variable Render_buffer render_buffer;
 #include "software_rendering.c"
 #include "game.c"
 
+#define process_button(vk, b) \
+if (vk_code == vk) {\
+	input.buttons[b].changed = is_down != input.buttons[b].is_down;\
+	input.buttons[b].is_down = is_down;\
+}
+
 LRESULT window_callback (HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
 
 	LRESULT result = 0;
@@ -67,6 +73,9 @@ int WinMain(HINSTANCE hInstance,
 			LPSTR lpCmdLine,
 			int nShowCmd) {
 
+	int max_w = GetSystemMetrics(SM_CXFULLSCREEN);
+	int max_h = GetSystemMetrics(SM_CYFULLSCREEN);
+
 	WNDCLASSA window_class = {0};
 	window_class.style = CS_HREDRAW|CS_VREDRAW;
 	window_class.lpfnWndProc = (WNDPROC) window_callback;
@@ -92,7 +101,7 @@ int WinMain(HINSTANCE hInstance,
 	Input input = {0};
 
 	int display_size_ind = 0;
-	int display_sizes[DISPLAY_SIZE_COUNT][2] = {{1920, 1080}, {1280, 720}};
+	int display_sizes[DISPLAY_SIZE_COUNT][2] = {{1280, 720}, {1920, 1080}, {2560, 1440}};
 
 	LARGE_INTEGER last_counter;
 	QueryPerformanceCounter(&last_counter);
@@ -103,7 +112,14 @@ int WinMain(HINSTANCE hInstance,
 
 	f32 frequency_counter = (f32) frequency_counter_l.QuadPart;
 
+	SetCursorPos(max_w / 2, max_h / 2);
+
 	while(running) {
+
+		POINT mouse_pointer;
+		GetCursorPos(&mouse_pointer);
+		ShowCursor(false);
+		//ScreenToClient(window, &mouse_pointer);
 		//Input
 
 		for (int i = 0; i < BUTTON_COUNT; ++i){
@@ -115,6 +131,15 @@ int WinMain(HINSTANCE hInstance,
 
 			switch(message.message) {
 
+				case WM_MOUSEMOVE: {
+					GetCursorPos(&mouse_pointer);
+					if (GetActiveWindow() == window) SetCursorPos(max_w / 2, max_h / 2);
+					else {
+						ShowCursor(true);
+						last_dt = 0;
+					}
+				}
+
 				case WM_SYSKEYDOWN:
 				case WM_SYSKEYUP:
 				case WM_KEYDOWN: 
@@ -124,11 +149,7 @@ int WinMain(HINSTANCE hInstance,
 					b32 was_down = ((message.lParam & (1 << 30)) != 0);
 					b32 is_down = ((message.lParam & (1 << 31)) == 0);
 
-#define process_button(vk, b) \
-if (vk_code == vk) {\
-	input.buttons[b].changed = is_down != input.buttons[b].is_down;\
-	input.buttons[b].is_down = is_down;\
-}
+
 
 					process_button(VK_LEFT, BUTTON_LEFT);
 					process_button(VK_RIGHT, BUTTON_RIGHT);
@@ -146,13 +167,7 @@ if (vk_code == vk) {\
 			}
 		}
 
-		POINT mouse_pointer;
-		GetCursorPos(&mouse_pointer);
-		ShowCursor(false);
-		ScreenToClient(window, &mouse_pointer);
-
-		input.mouse.x = mouse_pointer.x;
-		input.mouse.y = render_buffer.height-mouse_pointer.y;
+		input.mouse_dp = sub_v2i((v2i){mouse_pointer.x, mouse_pointer.y}, (v2i){max_w / 2, max_h / 2});
 
 		//Simulation
 		simulate_game(&input, last_dt, &running);
@@ -174,9 +189,9 @@ if (vk_code == vk) {\
 
 		if (input.buttons[BUTTON_F5].is_down && input.buttons[BUTTON_F5].changed) {
 			display_size_ind = (display_size_ind + 1) % DISPLAY_SIZE_COUNT;
-			int width = display_sizes[display_size_ind][0];
-			int height = display_sizes[display_size_ind][1];
-			SetWindowPos(window, HWND_TOP, (1920-width)/2, (1080-height)/2, width, height, SWP_SHOWWINDOW);
+			int width = min(max_w, display_sizes[display_size_ind][0]);
+			int height = min(max_h, display_sizes[display_size_ind][1]);
+			SetWindowPos(window, HWND_TOP, (max_w-width)/2, (max_h-height)/2, width, height, SWP_SHOWWINDOW);
 		}
 
 		//Get the frame time

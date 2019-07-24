@@ -37,6 +37,23 @@ calculate_aspect_multiplier() {
 }
 
 internal v2
+pixels_dp_to_world(v2i pixels_coord) {
+	f32 aspect_multiplier = calculate_aspect_multiplier();
+
+	v2 result;
+	result.x = (f32)pixels_coord.x;
+	result.y = (f32)pixels_coord.y;
+
+	result.x /= aspect_multiplier;
+	result.y /= aspect_multiplier;
+
+	result.x /= scale;
+	result.y /= scale;
+	
+	return result;
+}
+
+internal v2
 pixels_to_world(v2i pixels_coord) {
 	f32 aspect_multiplier = calculate_aspect_multiplier();
 
@@ -76,7 +93,7 @@ draw_rect(v2 p, v2 half_size, u32 color) {
 }
 
 internal void
-clear_screen_and_draw_rect(v2 p, v2 half_size, u32 color, u32 clear_color) {
+clear_screen_and_draw_rect(v2 p, v2 half_size, u32 color, u32 clear_color, f32 invisibility_time, b32 first_ball_movement) {
 	// Convert the untis to pixel and call draw_rect_in_pixels
 	f32 aspect_multiplier = calculate_aspect_multiplier();
 
@@ -94,7 +111,12 @@ clear_screen_and_draw_rect(v2 p, v2 half_size, u32 color, u32 clear_color) {
 	int x1 = (int)(p.x+half_size.x);
 	int y1 = (int)(p.y+half_size.y);
 
-	draw_rect_in_pixels(x0, 0, x1, y1, color);
+	if (invisibility_time > 0 || first_ball_movement){
+		draw_rect_in_pixels(x0, y0, x1, y1, color);
+		draw_rect_in_pixels(x0, 0, x1, y0, 0xafdfdf); //HardCoded
+
+	}
+	else draw_rect_in_pixels(x0, 0, x1, y1, color);
 
 	draw_rect_in_pixels(0, 0, x0, render_buffer.height, clear_color);
 	draw_rect_in_pixels(x1, 0, render_buffer.width, render_buffer.height, clear_color);

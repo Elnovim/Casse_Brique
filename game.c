@@ -1,17 +1,22 @@
-v2 arena_half_size;
+#include "collectibles.c"
 
-v2 player_p;
-v2 player_dp;
-v2 player_half_size;
+#define BALL_ACTIVE 0x1
+#define BALL_DESTROYED_ON_DP_Y_DOWN 0x2
+#define BALL_RIVAL_A 0x4
+#define BALL_RIVAL_B 0x8
 
-b32 invicible;
+struct {
+	v2 p;
+	v2 dp;
+	v2 half_size;
+	b32 base_speed;
+	f32 speed_multiplier;
+	v2 desired_p;
+	u32 flags;
+} typedef Ball;
 
-v2 ball_p;
-v2 ball_dp;
-v2 ball_half_size;
-b32 ball_base_speed;
-f32 ball_speed_multiplier;
-b32 first_ball_movement;
+#define BLOCK_RIVAL_A 0x1
+#define BLOCK_RIVAL_B 0x2
 
 struct {
 	v2 p;
@@ -19,7 +24,31 @@ struct {
 	f32 ball_speed_multiplier;
 	int life;
 	u32 color;
+	u32 flags;
+	Coll_Kind coll;
 } typedef Block;
+
+enum {
+	L01_NORMAL,
+	L02_WALL,
+	L03_STADIUM,
+	L04_PONG,
+
+	L_COUNT,
+} typedef Level;
+
+v2 arena_half_size;
+
+v2 player_p;
+v2 player_desired_p;
+v2 player_dp;
+v2 player_half_size;
+
+int number_of_life;
+
+b32 first_ball_movement;
+Ball balls[16];
+int next_ball;
 
 Block blocks[256];
 int num_block;
@@ -27,47 +56,11 @@ int blocks_destroyed;
 
 b32 initialized = false;
 
-enum {
-	GM_NORMAL,
-	GM_WALL,
-	GM_CONSTRUCTION,
-	GM_SPACED,
-	GM_POWERUP,
-	/*GM_PONG,*/
+f32 dt_multiplier = 1.f;
 
-	GM_COUNT,
-} typedef Game_Mode;
+Level current_level;
 
-enum {
-	POWERUP_INACTIVE,
-	POWERUP_INVICIBILITY,
-	POWERUP_TRIPLESHOT,
-
-	POWERUP_COUNT,
-} typedef Powerup_Kind;
-
-struct {
-	Powerup_Kind kind;
-	v2 p;
-} typedef Powerup;
-
-struct {
-	Powerup powerups[16];
-	int next_powerup;
-
-	f32 invicibility_time;
-	int number_of_triple_shots;
-
-} typedef GM_Powerups_State;
-
-struct {
-	union {
-		GM_Powerups_State;
-	};
-} typedef Game_Mode_State;
-
-Game_Mode current_game_mode;
-Game_Mode_State game_mode_state;
+#include "macros.c"
 
 internal void
 create_aligned_blocks(int num_x, int num_y, v2 block_half_size, f32 spacing_x, f32 spacing_y, f32 offset) {
@@ -83,54 +76,75 @@ create_aligned_blocks(int num_x, int num_y, v2 block_half_size, f32 spacing_x, f
 			block->half_size = block_half_size;
 			block->p.x = x*block->half_size.x*(2.f+spacing_x) - x_offset;
 			block->p.y = y*block->half_size.y*(2.f+spacing_y) - y_offset;
-			block->color = make_color_from_grey(y*255/num_y);
+			block->color = 0xffca66;
 			block->ball_speed_multiplier = 1+ (f32)y*1.25f/(f32)num_y;
+
+			if (y % 2) {
+				block->flags |= BLOCK_RIVAL_A;
+				block->color = 0x66ffff;
+			}
+			else block->flags |= BLOCK_RIVAL_B;
 		}
 	}
 }
 
 internal void
-spawn_powerup(v2 p) {
-	Powerup *powerup = game_mode_state.powerups + game_mode_state.next_powerup++;
-	if (game_mode_state.next_powerup >= array_count(game_mode_state.powerups)) game_mode_state.next_powerup = 0;
-	powerup->p = p;
-	powerup->kind = POWERUP_INVICIBILITY;
+reset_ball_coll() {
+	invicibility_time = 0.f;
+	number_of_comet = 0;
+	is_comet = false;
+	number_of_triple_shots = 0;
+	strong_blocks_time = 0.f;
+	reverse_time = 0.f;
+
+	balls[0].base_speed = 50;
+	balls[0].dp.x = 0;
+	balls[0].dp.y = -balls[0].base_speed;
+	balls[0].p.x = 0;
+	balls[0].p.y = 40;
+	balls[0].half_size = (v2){.75, .75};
+	balls[0].speed_multiplier = 1.f;
+	balls[0].desired_p = (v2){0.f, 0.f};
+	balls[0].flags |= BALL_ACTIVE;
+	first_ball_movement = true;
 }
 
 internal void
-restart_game(){
+restart_game() {
 
-	if (current_game_mode >= GM_COUNT) current_game_mode = 0;
-	else if (current_game_mode < 0) current_game_mode = GM_COUNT-1;
-	game_mode_state = (Game_Mode_State){0};
+	if (current_level >= L_COUNT) current_level = 0;
+	else if (current_level < 0) current_level = L_COUNT-1;
 
-	ball_base_speed = 50;
-	ball_dp.x = 0;
-	ball_dp.y = -ball_base_speed;
-	ball_p.x = 0;
-	ball_p.y = 40;
-	ball_half_size = (v2){.75, .75};
-	ball_speed_multiplier = 1.f;
+	zero_array(balls);
+	zero_array(colls);
 
+	number_of_life = 3;
+
+	reset_ball_coll();
+
+	player_p.x = 0;
 	player_p.y = -35;
+	player_desired_p = (v2){0, -35};
 	player_half_size = (v2){10, 2};
 
+	coll_half_size = (v2){2, 2};
+	invicibility_time = 0.f;
+
 	arena_half_size = (v2){85, 45};
-	first_ball_movement = true;
 
 	num_block = 0;
 	blocks_destroyed = 0;
-	for (Block *block = blocks; block != blocks+array_count(blocks); block++) {
+	for_each_block {
 		block->life = 0;
 	}
 
-	switch(current_game_mode) {
-		case GM_NORMAL: {
-			create_aligned_blocks(20, 9, (v2){4, 2}, 0, 0, -4.f);
+	switch(current_level) {
+		case L01_NORMAL: {
+			create_aligned_blocks(18, 9, (v2){4, 2}, .2f, .4f, -4.f);
 			
 		} break;
 
-		case GM_WALL: {
+		case L02_WALL: {
 			int num_x = 15;
 			int num_y = 9;
 			v2 block_half_size = (v2){4, 2};
@@ -155,47 +169,58 @@ restart_game(){
 			}
 		} break;
 
-		case GM_CONSTRUCTION: {
-			create_aligned_blocks(21, 6, (v2){4, 2}, 0, 2.f, 0.f);
-		} break;
-
-		case GM_SPACED: {
-			create_aligned_blocks(10, 6, (v2){4, 2}, 2.f, 2.f, 0.f);
-		} break;
-
 		invalid_default_case;
 	}
 }
 
 internal void
 test_for_win_condition() {
-	if (blocks_destroyed == num_block) restart_game(++current_game_mode);
+	if (blocks_destroyed == num_block) restart_game(++current_level);
 }
 
 internal void
 block_destroyed(Block *block) {
 	++blocks_destroyed;
 
-	switch(current_game_mode) {
-		case GM_WALL: {
-			spawn_powerup(block->p);
-		} break;
+	if (block->coll) {
+		spawn_collectible(block->p, block->coll);
 	}
 
 	test_for_win_condition();
 }
 
 internal void
-simulate_game_mode() {
-	switch(current_game_mode) {
-		case GM_WALL: {
-			for (Powerup *powerup = game_mode_state.powerups;
-				 powerup != game_mode_state.powerups+array_count(game_mode_state.powerups);
-				 ++powerup) {
-				if (powerup->kind == POWERUP_INACTIVE) continue;
-				draw_rect(powerup->p, (v2){2,2}, 0xffff00);
-			}
+simulate_level() {
+}
+
+internal Ball*
+get_next_available_ball() {
+	for_each_ball {
+		if (!(ball->flags & BALL_ACTIVE)) {
+			zero_struct(*ball);
+			return ball;
 		}
+	}
+	invalid_code_path;
+	return 0;
+}
+
+
+internal void
+spawn_triple_shot() {
+
+	for (int i = 0; i < 2; ++i) {
+		Ball *ball = get_next_available_ball();
+
+		ball->base_speed = 50;
+		ball->dp.x = (1-(i%2))*45.f;
+		ball->dp.y = ball->base_speed;
+		ball->p.x = player_p.x;
+		ball->p.y = player_p.y + player_half_size.y;
+		ball->half_size = balls[0].half_size;
+		ball->speed_multiplier = balls[0].speed_multiplier;
+		ball->desired_p = (v2){0.f, 0.f};
+		ball->flags = BALL_ACTIVE | BALL_DESTROYED_ON_DP_Y_DOWN;
 	}
 }
 
@@ -204,58 +229,127 @@ simulate_game_mode() {
 internal void
 simulate_game(Input *input, f32 dt, b32 *running) {
 
+	dt *= dt_multiplier;
+
 	if (!initialized) {
 		initialized = true;
-		Game_Mode current_game_mode = 0;
+		Level current_level = 0;
 		restart_game();
 	}
 
-	v2 player_desired_p;
-	player_desired_p.x = pixels_to_world(input->mouse).x;
+	if (reverse_time > 0) player_desired_p.x = player_p.x - pixels_dp_to_world(input->mouse_dp).x;
+	else player_desired_p.x = player_p.x + pixels_dp_to_world(input->mouse_dp).x;
+
+	if (is_player_colliding_right_arena()) player_desired_p.x = arena_half_size.x - player_half_size.x ;
+	else if (is_player_colliding_left_arena()) player_desired_p.x = player_half_size.x - arena_half_size.x ;
 	player_desired_p.y = player_p.y;
-	v2 ball_desired_p = add_v2(ball_p, mul_v2(ball_dp, dt));
 
-	ball_colliding_player(&ball_desired_p);
+	for_each_ball {
+		if (!(ball->flags & BALL_ACTIVE)) continue;
+		ball->desired_p = add_v2(ball->p, mul_v2(ball->dp, dt));
 
-	ball_colliding_arena(&ball_desired_p);
+		ball_colliding_player(ball);
 
-	clear_screen_and_draw_rect((v2){0, 0}, arena_half_size, 0xff0000, 0x551100);
+		ball_colliding_arena(ball);
 
-	for (Block *block = blocks; block != blocks+array_count(blocks); block++) {
+		// Ball reached end of area
+		if (ball->desired_p.y - ball->half_size.y < -50 && !(ball->flags & BALL_DESTROYED_ON_DP_Y_DOWN)) {
+			--number_of_life;
+			if (!number_of_life)  restart_game(current_level);
+			else {
+				reset_ball_coll();
+			}
+		}
+	}
+
+	clear_screen_and_draw_rect((v2){0, 0}, arena_half_size, 0x000066, 0x006666, invicibility_time, first_ball_movement);
+
+	for_each_block {
 		if (!block->life) continue;
 
-		if (!first_ball_movement)
-		// Ball/block collision
-		{
-			ball_colliding_block(ball_desired_p, block);
+		if (!first_ball_movement) {
+			for_each_ball {
+				if (!(ball->flags & BALL_ACTIVE)) continue;
+				ball_colliding_block(ball, block);
+			}
 		}
 
 		draw_rect(block->p, block->half_size, block->color);
 	}
 
-	ball_p = ball_desired_p;
+	for_each_coll {
+		if (coll->kind == COLL_INACTIVE) continue;
+		coll->p.y -= 15*dt;
+
+		if (is_colliding(player_p, player_half_size, coll->p, coll_half_size)) {
+			switch(coll->kind){
+				case COLL_INVICIBILITY: {
+					invicibility_time += 5.f;
+				} break;
+
+				case COLL_TRIPLESHOT: {
+					++number_of_triple_shots;
+				} break;
+
+				case COLL_COMET: {
+					++number_of_comet;
+				} break;
+
+				case COLL_LOOSE_LIFE: {
+					--number_of_life;
+					if (!number_of_life) restart_game(current_level);
+				} break;
+
+				case COLL_STRONG_BLOCKS: {
+					strong_blocks_time += 5.f;
+				} break;
+
+				case COLL_REVERSE_CONTROL: {
+					reverse_time += 5.f;
+				} break;
+
+				invalid_default_case;
+			}
+			coll->kind = COLL_INACTIVE;
+			continue;
+		}
+		draw_rect(coll->p, coll_half_size, 0xffff99);
+	}
+
+	// Render ball
+	for_each_ball {
+		if (!(ball->flags & BALL_ACTIVE)) continue;
+		ball->p = ball->desired_p;
+		if (ball->flags & BALL_DESTROYED_ON_DP_Y_DOWN) draw_rect(ball->p, ball->half_size, 0xffffff);
+		else if (is_comet) draw_rect(ball->p, ball->half_size, 0xff9999);
+		else draw_rect(ball->p, ball->half_size, 0x66ffff);
+	}
+
 	player_dp.x = (player_desired_p.x - player_p.x) / dt;
 	player_p = player_desired_p;
 
-	simulate_game_mode();
+	simulate_level();
 
-	draw_rect(ball_p, ball_half_size, 0x00ffff);
-
-	if (invicible) draw_rect(player_p, player_half_size, 0xffffff);
-	else draw_rect(player_p, player_half_size, 0x22ff22);
+	if (invicibility_time > 0.f) invicibility_time -= dt;
+	if (strong_blocks_time > 0.f) strong_blocks_time -= dt;
+	if (reverse_time > 0.f) reverse_time -= dt;
+	if (number_of_triple_shots > 0) draw_rect(player_p, player_half_size, 0xffffff);
+	else if (number_of_comet > 0) draw_rect(player_p, player_half_size, 0xff9999);
+	else if (reverse_time > 0) draw_rect(player_p, player_half_size, 0x7f00ff);
+	else draw_rect(player_p, player_half_size, 0x80ff00);
 
 	// Check Win
 	test_for_win_condition();
 
-	// Game over
-	if (ball_desired_p.y - ball_half_size.y < -50) {
-		restart_game(current_game_mode);
-	}
+
 
 	if (pressed(BUTTON_ESC)) *running = false;
 
 #if DEVELOPMENT
-	if (pressed(BUTTON_LEFT)) restart_game(--current_game_mode);
-	if (pressed(BUTTON_RIGHT)) restart_game(++current_game_mode);
+	if (pressed(BUTTON_LEFT)) restart_game(--current_level);
+	if (pressed(BUTTON_RIGHT)) restart_game(++current_level);
+	if (pressed(BUTTON_DOWN)) dt_multiplier = 10.f;
+	if (released(BUTTON_DOWN)) dt_multiplier = 1.f;
+	if (is_down(BUTTON_UP)) invicibility_time += dt;
 #endif
 }

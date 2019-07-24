@@ -34,3 +34,16 @@ global_variable b32 running = true;
 #endif
 
 #define invalid_default_case default : {assert(0);}
+#define invalid_code_path assert(0);
+
+inline void
+zero_size(void *mem, u64 size) {
+	u8 *dest = (u8*)mem;
+	for (u64 i = 0; i < size; ++i) {
+		*dest++ = 0;
+	}
+}
+
+#define zero_array(a) zero_size(a, sizeof(a))
+
+#define zero_struct(s) zero_size(&(s), sizeof(s))
