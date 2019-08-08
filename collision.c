@@ -85,9 +85,9 @@ ball_colliding_block(Ball *ball, Block *block) {
 					if (!is_comet) ball->dp.y = -ball->base_speed * ball->speed_multiplier;
 				}
 				else ball->dp.y = ball->base_speed * ball->speed_multiplier;
-				if (strong_blocks_time == 0) {
+				if (strong_blocks_time <= 0) {
 					--block->life;
-					if (!block->life) block_destroyed(block);
+					if (block->life <= 0) block_destroyed(block);
 				}
 			}
 		}
@@ -111,9 +111,9 @@ ball_colliding_block(Ball *ball, Block *block) {
 					ball->dp.y = ball->base_speed * ball->speed_multiplier;
 				}
 				else ball->dp.y = -ball->base_speed * ball->speed_multiplier;
-				if (strong_blocks_time == 0) {
+				if (strong_blocks_time <= 0) {
 					--block->life;
-					if (!block->life) block_destroyed(block);
+					if (block->life <= 0) block_destroyed(block);
 				}
 			}
 		}

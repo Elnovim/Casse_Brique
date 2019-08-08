@@ -4,9 +4,9 @@ struct {
 } typedef Button;
 
 enum {
-	DISPLAY_QHD,
-	DISPLAY_FHD,
 	DISPLAY_HD,
+	DISPLAY_FHD,
+	DISPLAY_QHD,
 
 	DISPLAY_SIZE_COUNT,
 };

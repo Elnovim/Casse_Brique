@@ -18,10 +18,20 @@ absf(f32 a) {
 	return a;
 }
 
+inline f32
+square(f32 a) {
+	return a*a;
+}
+
 // Color
 inline u32
 make_color_from_grey(u8 grey) {
 	return (grey << 0) | (grey << 8) | (grey << 16);
+}
+
+inline u32
+make_color_from_rgb(u8 r, u8 g, u8 b) {
+	return (b << 0) | (g << 8) | (r << 16);
 }
 
 // Vector 2
