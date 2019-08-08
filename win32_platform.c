@@ -15,6 +15,7 @@ struct {
 } typedef Render_buffer;
 
 global_variable Render_buffer render_buffer;
+global_variable f32 current_time;
 
 #include "platform_common.c"
 #include "software_rendering.c"
@@ -201,8 +202,10 @@ int WinMain(HINSTANCE hInstance,
 		QueryPerformanceCounter(&current_counter);
 
 		last_dt = min(.1f, (f32)(current_counter.QuadPart - last_counter.QuadPart) / frequency_counter);
+		current_time += last_dt;
 
 		last_counter = current_counter;
+
 	}
 
 }

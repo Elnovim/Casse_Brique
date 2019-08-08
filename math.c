@@ -87,3 +87,35 @@ inline v2i
 mul_v2i(v2i a, f32 s) {
 	return (v2i){s * a.x, s * a.y};
 }
+
+// Random
+
+u32 random_state = 1234; // Change the seed to be unique per game-run
+
+inline u32
+random_u32() {
+	u32 result = random_state;
+	result ^= result << 13;
+	result ^= result >> 17;
+	result ^= result << 5;
+	random_state = result;
+	return result;
+}
+
+inline u32
+random_int_in_range(int min, int max) {
+	int range = max-min+1;
+	int result = random_u32() % range;
+	result += min;
+	return result;
+}
+
+inline b32
+random_b32() {
+	return random_u32()%2;
+}
+
+inline b32
+random_choice(int chance) {
+	return random_u32()%chance == 0;
+}

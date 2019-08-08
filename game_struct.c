@@ -5,10 +5,24 @@
 
 struct {
 	v2 p;
+	v2 desired_p;
+	v2 dp;
+	v2 half_size;
+
+	b32 is_twinkling;
+	b32 twinkle;
+	f32 twinkling_t;
+	f32 twinkling_target;
+	u32 twinkling_number;
+} typedef Player;
+
+struct {
+	v2 p;
 	v2 dp;
 	v2 half_size;
 	b32 base_speed;
 	f32 speed_multiplier;
+	v2 collision_test_p;
 	v2 desired_p;
 	u32 color;
 	u32 flags;
@@ -42,13 +56,21 @@ struct {
 	v2 p;
 	v2 dp;
 	v2 half_size;
-	int num_blocks_x;
-	f32 block_half_size_x;
-	f32 spacing_x;
 } typedef Level_Pong_State;
+
+struct {
+	v2 p;
+	v2 max_p;
+	f32 x_movement;
+	f32 movement_t;
+	f32 movement_target;
+	b32 is_moving_right;
+	b32 is_moving_down;
+} typedef Level_Invader_State;
 
 struct {
 	union {
 		Level_Pong_State pong;
+		Level_Invader_State invader;
 	};
 } typedef Level_State;

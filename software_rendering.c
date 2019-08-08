@@ -93,6 +93,96 @@ draw_rect(v2 p, v2 half_size, u32 color) {
 }
 
 internal void
+draw_number(int number, v2 p, f32 size, u32 color) {
+	int digit = number % 10;
+	b32 first_digit = true;
+
+	f32 square_size = size / 5.f;
+	f32 half_square_size = size / 10.f;
+
+	while (number || first_digit) {
+		first_digit = false;
+
+		switch(digit) {
+			case 0: {
+				draw_rect((v2){p.x-square_size, p.y},     (v2){half_square_size, 2.5f*square_size}, color);
+				draw_rect((v2){p.x+square_size, p.y},     (v2){half_square_size, 2.5f*square_size}, color);
+				draw_rect((v2){p.x, p.y+square_size*2.f}, (v2){half_square_size, half_square_size}, color);
+				draw_rect((v2){p.x, p.y-square_size*2.f}, (v2){half_square_size, half_square_size}, color);
+				p.x -= square_size*4.f;
+			} break;
+			case 1: {
+				draw_rect((v2){p.x+square_size, p.y}, (v2){half_square_size, 2.5f*square_size}, color);
+				p.x -= square_size*2.f;
+			} break;
+			case 2: {
+				draw_rect((v2){p.x, p.y+square_size*2.f},         (v2){1.5f*square_size, half_square_size}, color);
+				draw_rect((v2){p.x, p.y},                         (v2){1.5f*square_size, half_square_size}, color);
+				draw_rect((v2){p.x, p.y-square_size*2.f},         (v2){1.5f*square_size, half_square_size}, color);
+				draw_rect((v2){p.x+square_size, p.y+square_size}, (v2){half_square_size, half_square_size}, color);
+				draw_rect((v2){p.x-square_size, p.y-square_size}, (v2){half_square_size, half_square_size}, color);
+				p.x -= square_size*4.f;
+			} break;
+			case 3: {
+				draw_rect((v2){p.x-half_square_size, p.y+square_size*2.f}, (v2){square_size, half_square_size}, color);
+				draw_rect((v2){p.x-half_square_size, p.y},                 (v2){square_size, half_square_size}, color);
+				draw_rect((v2){p.x-half_square_size, p.y-square_size*2.f}, (v2){square_size, half_square_size}, color);
+				draw_rect((v2){p.x+half_square_size, p.y},                 (v2){half_square_size, 2.5f*square_size}, color);
+				p.x -= square_size*4.f;
+			} break;
+			case 4: {
+				draw_rect((v2){p.x+square_size, p.y},             (v2){half_square_size, 2.5f*square_size}, color);
+				draw_rect((v2){p.x-square_size, p.y+square_size}, (v2){half_square_size, 1.5f*square_size}, color);
+				draw_rect((v2){p.x, p.y},                         (v2){half_square_size, half_square_size}, color);
+				p.x -= square_size*4.f;
+			} break;
+			case 5: {
+				draw_rect((v2){p.x, p.y+square_size*2.f},         (v2){1.5f*square_size, half_square_size}, color);
+				draw_rect((v2){p.x, p.y},                         (v2){1.5f*square_size, half_square_size}, color);
+				draw_rect((v2){p.x, p.y-square_size*2.f},         (v2){1.5f*square_size, half_square_size}, color);
+				draw_rect((v2){p.x-square_size, p.y+square_size}, (v2){half_square_size, half_square_size}, color);
+				draw_rect((v2){p.x+square_size, p.y-square_size}, (v2){half_square_size, half_square_size}, color);
+				p.x -= square_size*4.f;
+			} break;
+			case 6: {
+				draw_rect((v2){p.x+half_square_size, p.y+square_size*2.f}, (v2){square_size, half_square_size}, color);
+				draw_rect((v2){p.x+half_square_size, p.y},                 (v2){square_size, half_square_size}, color);
+				draw_rect((v2){p.x+half_square_size, p.y-square_size*2.f}, (v2){square_size, half_square_size}, color);
+				draw_rect((v2){p.x-square_size, p.y},                      (v2){half_square_size, 2.5f*square_size}, color);
+				draw_rect((v2){p.x+square_size, p.y-square_size},          (v2){half_square_size, half_square_size}, color);
+				p.x -= square_size*4.f;
+			} break;
+			case 7: {
+				draw_rect((v2){p.x+square_size, p.y},                      (v2){half_square_size, 2.5f*square_size}, color);
+				draw_rect((v2){p.x-half_square_size, p.y+square_size*2.f}, (v2){square_size, half_square_size}, color);
+				p.x -= square_size*4.f;
+			} break;
+			case 8: {
+				draw_rect((v2){p.x-square_size, p.y},      (v2){half_square_size, 2.5f*square_size}, color);
+				draw_rect((v2){p.x+half_square_size, p.y}, (v2){half_square_size, 2.5f*square_size}, color);
+				draw_rect((v2){p.x, p.y+square_size*2.f},  (v2){half_square_size, half_square_size}, color);
+				draw_rect((v2){p.x, p.y-square_size*2.f},  (v2){half_square_size, half_square_size}, color);
+				draw_rect((v2){p.x, p.y},                  (v2){half_square_size, half_square_size}, color);
+				p.x -= square_size*4.f;
+			} break;
+			case 9: {
+				draw_rect((v2){p.x-half_square_size, p.y+square_size*2.f}, (v2){square_size, half_square_size}, color);
+				draw_rect((v2){p.x-half_square_size, p.y},                 (v2){square_size, half_square_size}, color);
+				draw_rect((v2){p.x-half_square_size, p.y-square_size*2.f}, (v2){square_size, half_square_size}, color);
+				draw_rect((v2){p.x+square_size, p.y},                      (v2){half_square_size, 2.5f*square_size}, color);
+				draw_rect((v2){p.x-square_size, p.y+square_size},          (v2){half_square_size, half_square_size}, color);
+				p.x -= square_size*4.f;
+			} break;
+
+			invalid_default_case;
+		}
+
+		number /= 10;
+		digit = number % 10;
+	}
+}
+
+internal void
 clear_screen_and_draw_rect(v2 p, v2 half_size, u32 color, u32 clear_color, f32 invisibility_time, b32 first_ball_movement) {
 	// Convert the untis to pixel and call draw_rect_in_pixels
 	f32 aspect_multiplier = calculate_aspect_multiplier();
