@@ -5,10 +5,34 @@ clamp(int min, int val, int max) {
 	return val;
 }
 
+// Color
+inline u32
+make_color_from_grey(u8 grey) {
+	return (grey << 0) | (grey << 8) | (grey << 16);
+}
+
+inline u32
+make_color_from_rgb(u8 r, u8 g, u8 b) {
+	return (b << 0) | (g << 8) | (r << 16);
+}
+
 // Lerp
 inline f32
 lerp (f32 a, f32 t, f32 b) {
 	return (1-t)*a + t*b;
+}
+
+inline u32
+lerp_color (u32 a, f32 t, u32 b) {
+	f32 a_r = (f32)((a & 0xff0000) >> 16);
+	f32 a_g = (f32)((a & 0xff00) >> 8);
+	f32 a_b = (f32)(a & 0xff);
+
+	f32 b_r = (f32)((b & 0xff0000) >> 16);
+	f32 b_g = (f32)((b & 0xff00) >> 8);
+	f32 b_b = (f32)(b & 0xff);
+
+	return make_color_from_rgb((u8)lerp(a_r, t, b_r), (u8)lerp(a_g, t, b_g), (u8)lerp(a_b, t, b_b));
 }
 
 // Absolute of f32
@@ -21,17 +45,6 @@ absf(f32 a) {
 inline f32
 square(f32 a) {
 	return a*a;
-}
-
-// Color
-inline u32
-make_color_from_grey(u8 grey) {
-	return (grey << 0) | (grey << 8) | (grey << 16);
-}
-
-inline u32
-make_color_from_rgb(u8 r, u8 g, u8 b) {
-	return (b << 0) | (g << 8) | (r << 16);
 }
 
 // Vector 2
@@ -90,7 +103,12 @@ mul_v2i(v2i a, f32 s) {
 
 // Random
 
-u32 random_state = 1234; // Change the seed to be unique per game-run
+u32 random_state = 0; // Change the seed to be unique per game-run
+
+inline void
+set_random_seed(u32 random_seed) {
+	random_state = random_seed;
+}
 
 inline u32
 random_u32() {

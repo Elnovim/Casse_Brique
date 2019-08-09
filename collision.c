@@ -9,36 +9,40 @@ is_colliding(v2 p1, v2 half_size1, v2 p2, v2 half_size2) {
 
 inline b32
 is_player_colliding_left_arena() {
-	if (player.desired_p.x - player.half_size.x < -arena_half_size.x) return true;
+	if (player.desired_p.x - player.half_size.x < arena.left_wall_visual_p) return true;
 	return false;
 }
 
 inline b32
 is_player_colliding_right_arena() {
-	if (player.desired_p.x + player.half_size.x > arena_half_size.x) return true;
+	if (player.desired_p.x + player.half_size.x > arena.right_wall_visual_p) return true;
 	return false;
 }
 
 inline void
 ball_colliding_arena(Ball *ball) {
-	if (ball->desired_p.x + ball->half_size.x > arena_half_size.x) {
-		ball->desired_p.x = arena_half_size.x - ball->half_size.x;
+	if (ball->desired_p.x + ball->half_size.x > arena.right_wall_visual_p) {
+		ball->desired_p.x = arena.right_wall_visual_p - ball->half_size.x;
 		ball->dp.x *= -1;
+		arena.right_wall_visual_dp += 10.f;
 	}
-	else if (ball->desired_p.x - ball->half_size.x < -arena_half_size.x) {
-		ball->desired_p.x = -arena_half_size.x + ball->half_size.x;
+	else if (ball->desired_p.x - ball->half_size.x < arena.left_wall_visual_p) {
+		ball->desired_p.x = arena.left_wall_visual_p + ball->half_size.x;
 		ball->dp.x *= -1;
+		arena.left_wall_visual_dp -= 10.f;
 	}
 
-	if (ball->desired_p.y + ball->half_size.y > arena_half_size.y) {
-		ball->desired_p.y = arena_half_size.y - ball->half_size.y;
+	if (ball->desired_p.y + ball->half_size.y > arena.top_wall_visual_p) {
+		ball->desired_p.y = arena.top_wall_visual_p - ball->half_size.y;
 		ball->dp.y *= -1;
+		arena.top_wall_visual_dp += 10.f;
+		process_ball_when_dp_y_down(ball);
 		if (is_comet) is_comet = false;
 	}
 
 	if (first_ball_movement || invicibility_time > 0.f) {
-		if (ball->desired_p.y - ball->half_size.y < -arena_half_size.y) {
-			ball->desired_p.y = -arena_half_size.y + ball->half_size.y;
+		if (ball->desired_p.y - ball->half_size.y < -arena.half_size.y) {
+			ball->desired_p.y = -arena.half_size.y + ball->half_size.y;
 			ball->dp.y *= -1;
 		}
 	}
@@ -69,7 +73,7 @@ ball_colliding_player(Ball *ball) {
 inline void
 ball_colliding_block(Ball *ball, Block *block) {
 	f32 diff = ball->collision_test_p.y - ball->p.y;
-	if (diff != 0) {
+	if (diff != 0 && block->flags & BLOCK_ACTIVE) {
 		f32 collision_point;
 		if (ball->dp.y > 0) collision_point = block->p.y - block->half_size.y - ball->half_size.y;
 		else collision_point = block->p.y + block->half_size.y + ball->half_size.y;
@@ -82,19 +86,22 @@ ball_colliding_block(Ball *ball, Block *block) {
 				if (block->ball_speed_multiplier > ball->speed_multiplier) ball->speed_multiplier = block->ball_speed_multiplier;
 				if (ball->dp.y > 0) {
 					if (ball->flags & BALL_DESTROYED_ON_DP_Y_DOWN) ball->flags &= ~BALL_ACTIVE;
-					if (!is_comet) ball->dp.y = -ball->base_speed * ball->speed_multiplier;
+					if (!is_comet) {
+						ball->dp.y = -ball->base_speed * ball->speed_multiplier;
+						process_ball_when_dp_y_down(ball);
+					}
 				}
 				else ball->dp.y = ball->base_speed * ball->speed_multiplier;
 				if (strong_blocks_time <= 0) {
 					--block->life;
-					if (block->life <= 0) block_destroyed(block);
+					if (block->life == 0) block_destroyed(block);
 				}
 			}
 		}
 	}
 
 	diff = ball->collision_test_p.x - ball->p.x;
-	if (diff != 0) {
+	if (diff != 0 && block->flags & BLOCK_ACTIVE) {
 		f32 collision_point;
 		if (ball->dp.x > 0) collision_point = block->p.x - block->half_size.x - ball->half_size.x;
 		else collision_point = block->p.x + block->half_size.x + ball->half_size.x;
@@ -104,7 +111,7 @@ ball_colliding_block(Ball *ball, Block *block) {
 			if (target_y + ball->half_size.y > block->p.y - block->half_size.y &&
 				target_y - ball->half_size.y < block->p.y + block->half_size.y) {
 				ball->desired_p.x = lerp(ball->p.x, t_x, ball->collision_test_p.x);
-				ball->dp.x *= -1;
+				if (!is_comet) ball->dp.x *= -1;
 				if (block->ball_speed_multiplier > ball->speed_multiplier) ball->speed_multiplier = block->ball_speed_multiplier;
 				if (ball->dp.y > 0) {
 					if (ball->flags & BALL_DESTROYED_ON_DP_Y_DOWN) ball->flags &= ~BALL_ACTIVE;
@@ -113,7 +120,7 @@ ball_colliding_block(Ball *ball, Block *block) {
 				else ball->dp.y = -ball->base_speed * ball->speed_multiplier;
 				if (strong_blocks_time <= 0) {
 					--block->life;
-					if (block->life <= 0) block_destroyed(block);
+					if (block->life == 0) block_destroyed(block);
 				}
 			}
 		}

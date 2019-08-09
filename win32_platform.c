@@ -74,6 +74,12 @@ int WinMain(HINSTANCE hInstance,
 			LPSTR lpCmdLine,
 			int nShowCmd) {
 
+	SYSTEMTIME st;
+	GetSystemTime(&st);
+
+	u32 random_seed = 31557600 * (st.wYear - 1 - 1970) + 2629800 * (st.wMonth - 1) + 86400 * (st.wDay - 1) + 3600 * st.wHour + 60 * st.wMinute + st.wSecond;
+	set_random_seed(random_seed);
+
 	int max_w = GetSystemMetrics(SM_CXFULLSCREEN);
 	int max_h = GetSystemMetrics(SM_CYFULLSCREEN);
 

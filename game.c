@@ -1,29 +1,8 @@
 #include "collectibles.c"
 #include "game_struct.c"
+#include "console.c"
 
-v2 arena_half_size;
 
-int number_of_life;
-int score;
-f32 combo_time;
-
-Player player;
-
-b32 first_ball_movement;
-Ball balls[16];
-int next_ball;
-
-Block blocks[256];
-int num_blocks;
-int blocks_destroyed;
-
-Level_State level_state;
-
-b32 initialized = false;
-
-f32 dt_multiplier = 1.f;
-
-Level current_level;
 
 #include "macros.c"
 
@@ -57,15 +36,18 @@ create_aligned_blocks(int num_x, int num_y, v2 block_half_size, f32 spacing_x, f
 			block->half_size = block_half_size;
 			block->relative_p.x = x*block->half_size.x*(2.f+spacing_x) - x_offset;
 			block->relative_p.y = y*block->half_size.y*(2.f+spacing_y) - y_offset;
+			block->coll = 0;
+			if (random_choice(15)) block->coll = random_int_in_range(1, 3);
+			else if (random_choice(30)) block->coll = random_int_in_range(4, 7);
 
 			if (current_level == L03_RIVALS) {
 				if (y % 2) {
 					block->color = 0x66ffff;
-					block->flags = BLOCK_RIVAL_A;
+					block->flags = BLOCK_RIVAL_A | BLOCK_ACTIVE;
 					block->ball_speed_multiplier = 1+ (f32)y*1.1f/(f32)num_y;
 				}
 				else {
-					block->flags = BLOCK_RIVAL_B;
+					block->flags = BLOCK_RIVAL_B | BLOCK_ACTIVE;
 					block->color = 0xffd366;
 					block->ball_speed_multiplier = 1+ (f32)y*1.1f/(f32)num_y;
 				}
@@ -73,7 +55,7 @@ create_aligned_blocks(int num_x, int num_y, v2 block_half_size, f32 spacing_x, f
 			else {
 				u8 k = y*255/num_y;
 				block->color = make_color_from_rgb(k, 255, 128);
-				block->flags = BLOCK_RIVAL_A;
+				block->flags = BLOCK_RIVAL_A| BLOCK_ACTIVE;
 				block->ball_speed_multiplier = base_speed_multiplier + (f32)y*1.25f/(f32)num_y;
 			}
 		}
@@ -108,9 +90,10 @@ create_invaders(int num_x, int num_y, v2 block_half_size, f32 base_speed_multipl
 						block->relative_p.y = -block->half_size.y*2.f*p - (j*(size_y+3)*block->half_size.y*2) - y_offset;
 						block->color = 0x33ff33;
 						block->ball_speed_multiplier = base_speed_multiplier + (f32)(array_count(invader)-p)*.75f/(f32)(array_count(invader));
-						block->flags = BLOCK_RIVAL_A;
-						if (random_choice(15)) block->coll = random_int_in_range(0, 2);
-						else if (random_choice(30)) block->coll = random_int_in_range(3, 6);
+						block->flags = BLOCK_RIVAL_A | BLOCK_ACTIVE;
+						block->coll = 0;
+						if (random_choice(15)) block->coll = random_int_in_range(1, 3);
+						else if (random_choice(30)) block->coll = random_int_in_range(4, 7);
 					}
 					++d;
 				}
@@ -122,6 +105,8 @@ create_invaders(int num_x, int num_y, v2 block_half_size, f32 base_speed_multipl
 
 internal void
 reset_ball_coll() {
+
+	f32 middle_point_y = (arena.half_size.y + (player.p.y + player.half_size.y)) * .5f;
 	invicibility_time = 0.f;
 	number_of_comet = 0;
 	is_comet = false;
@@ -134,28 +119,36 @@ reset_ball_coll() {
 	balls[0].dp.x = 0;
 	balls[0].dp.y = -balls[0].base_speed;
 	balls[0].p.x = 0;
-	balls[0].p.y = 40;
+	balls[0].p.y = middle_point_y;
 	balls[0].half_size = (v2){.75, .75};
 	balls[0].speed_multiplier = 1.f;
 	balls[0].desired_p = balls[0].p;
 	balls[0].collision_test_p = balls[0].p;
 	balls[0].color = 0x66bbff;
 	balls[0].flags |= BALL_ACTIVE | BALL_RIVAL_A;
+	zero_array(balls[0].trails);
+	balls[0].next_trail = 0;
+	balls[0].trail_spawner = .005f;
+	balls[0].trail_spawner_t = 0.f;
 
 	if (current_level == L03_RIVALS) {
-		balls[0].dp.x = 3;
+		balls[0].flags |= BALL_FIXED_SPEED;
 
 		balls[1].base_speed = 50;
-		balls[1].dp.x = -3;
-		balls[1].dp.y = -balls[0].base_speed;
+		balls[1].dp.x = 0;
+		balls[1].dp.y = -balls[1].base_speed * .5f;
 		balls[1].p.x = 0;
-		balls[1].p.y = 80;
+		balls[1].p.y = middle_point_y;
 		balls[1].half_size = (v2){.75, .75};
 		balls[1].speed_multiplier = 1.f;
 		balls[1].desired_p = balls[1].p;
 		balls[1].collision_test_p = balls[1].p;		
 		balls[1].color = 0xffaa66;
-		balls[1].flags |= BALL_ACTIVE | BALL_RIVAL_B;
+		balls[1].flags |= BALL_ACTIVE | BALL_RIVAL_B | BALL_FIXED_SPEED;
+		zero_array(balls[1].trails);
+		balls[1].next_trail = 0;
+		balls[1].trail_spawner = .001f;
+		balls[1].trail_spawner_t = 0.f;
 	}
 	first_ball_movement = true;
 }
@@ -173,12 +166,12 @@ simulate_level(Level level, f32 dt) {
 			v2 desired_dp = add_v2(pong->dp, mul_v2(ddp, dt));
 			v2 desired_p = add_v2(add_v2(pong->p, mul_v2(desired_dp, dt)), 
 								  mul_v2(ddp, square(dt)));
-			if (desired_p.x - pong->half_size.x < -arena_half_size.x) {
-				desired_p.x = -arena_half_size.x + pong->half_size.x;
+			if (desired_p.x - pong->half_size.x < arena.left_wall_visual_p) {
+				desired_p.x = arena.left_wall_visual_p + pong->half_size.x;
 				desired_dp.x = -desired_dp.x;
 			}
-			else if (desired_p.x + pong->half_size.x > arena_half_size.x) {
-				desired_p.x = arena_half_size.x - pong->half_size.x;
+			else if (desired_p.x + pong->half_size.x > arena.right_wall_visual_p) {
+				desired_p.x = arena.right_wall_visual_p - pong->half_size.x;
 				desired_dp.x = -desired_dp.x;
 			}
 			pong->dp = desired_dp;
@@ -234,6 +227,24 @@ simulate_block_for_level(Block *block, Level level) {
 	}
 }
 
+internal f32
+calculate_speed_adjustement(Ball *ball) {
+	f32 time_to_player = 1.f;
+	f32 dist_to_player = ball->p.y - (player.p.y + player.half_size.y);
+	f32 result = (dist_to_player / time_to_player) / ball->base_speed;
+
+	return result;
+}
+
+internal void
+process_ball_when_dp_y_down(Ball *ball) {
+	if (ball->flags & BALL_FIXED_SPEED) {
+		if (balls[0].dp.y < 0) {
+			ball->dp.y = -ball->base_speed * calculate_speed_adjustement(ball);
+		}
+	}
+}
+
 internal void
 restart_game() {
 
@@ -246,13 +257,12 @@ restart_game() {
 
 	zero_struct(level_state);
 
+	reset_ball_coll();
+
 	number_of_life = 3;
 	score = 0;
 
-	reset_ball_coll();
-
-	player.p.x = 0;
-	player.p.y = -35;
+	player.p = (v2){0, -35};
 	player.desired_p = (v2){0, -35};
 	player.half_size = (v2){10, 2};
 	player.is_twinkling = false;
@@ -264,7 +274,13 @@ restart_game() {
 	coll_half_size = (v2){2, 2};
 	invicibility_time = 0.f;
 
-	arena_half_size = (v2){85, 45};
+	arena.half_size = (v2){85, 45};
+	arena.left_wall_visual_p = -arena.half_size.x;
+	arena.left_wall_visual_dp = 0.f;
+	arena.right_wall_visual_p = arena.half_size.x;
+	arena.right_wall_visual_dp = 0.f;
+	arena.top_wall_visual_p = arena.half_size.y;
+	arena.top_wall_visual_dp = 0.f;
 
 	num_blocks = 0;
 	blocks_destroyed = 0;
@@ -293,17 +309,11 @@ restart_game() {
 					block->relative_p.y = y*block->half_size.y*2.5f - y_offset;
 					block->color = make_color_from_grey(y*255/num_y);
 					block->ball_speed_multiplier = 1.f + (f32)y*1.25f/(f32)num_y;
-					block->flags |= BLOCK_RIVAL_A;
+					block->flags = BLOCK_RIVAL_A | BLOCK_ACTIVE;
+					block->coll = 0;
 
-					if (y == 0) {
-						if (x % 4 == 0) block->coll = collectible++;
-					}
-					else if (y == 6 || y == 7) {
-						if (x % 5 == 0) block->coll = collectible++;
-					}
-					else block->coll = 0;
-
-					if (collectible % COLL_COUNT == 0) collectible = 1;
+					if (random_choice(15)) block->coll = random_int_in_range(1, 3);
+					else if (random_choice(30)) block->coll = random_int_in_range(4, 7);
 				}
 			}
 		} break;
@@ -320,7 +330,7 @@ restart_game() {
 		case L05_INVADERS: {
 			f32 half_size_invaders;
 			half_size_invaders = create_invaders(5, 2, (v2){1.25f,1.25f}, 1.f);
-			f32 max_x = arena_half_size.x - half_size_invaders;
+			f32 max_x = arena.half_size.x - half_size_invaders;
 			level_state.invader.x_movement = max_x / 4.f;
 			level_state.invader.movement_target = 1.f;
 			level_state.invader.max_p = (v2){max_x, 0};
@@ -339,6 +349,7 @@ test_for_win_condition() {
 
 internal void
 block_destroyed(Block *block) {
+	block->flags &= ~BLOCK_ACTIVE;
 	++blocks_destroyed;
 	f32 delta = max(0.01f, (current_time - combo_time));
 	int time_bonus = (int)(.4f/delta);
@@ -368,6 +379,10 @@ spawn_triple_shot() {
 		ball->desired_p = ball->p;
 		ball->collision_test_p = ball->p;
 		ball->flags |= BALL_ACTIVE | BALL_DESTROYED_ON_DP_Y_DOWN | BALL_RIVAL_A;
+		zero_array(ball->trails);
+		ball->next_trail = 0;
+		ball->trail_spawner = .001f;
+		ball->trail_spawner_t = 0.f;
 	}
 }
 
@@ -389,13 +404,17 @@ simulate_game(Input *input, f32 dt, b32 *running) {
 	else if (reverse_time > 0 && slow_player_t > 0) player.desired_p.x = player.p.x - .5f * pixels_dp_to_world(input->mouse_dp).x;
 	else player.desired_p.x = player.p.x + pixels_dp_to_world(input->mouse_dp).x;
 
+	player.half_size = (v2){10.f + (.01f*absf(player.dp.x)), 2.f + (-.0005f*absf(player.dp.x))};
 
-	if (is_player_colliding_right_arena()) player.desired_p.x = arena_half_size.x - player.half_size.x ;
-	else if (is_player_colliding_left_arena()) player.desired_p.x = player.half_size.x - arena_half_size.x ;
+	if ((player.desired_p.x - player.half_size.x < arena.left_wall_visual_p) || (player.desired_p.x + player.half_size.x > arena.right_wall_visual_p)) player.half_size = (v2){10, 2};
+
+	if (is_player_colliding_right_arena()) player.desired_p.x = arena.right_wall_visual_p - player.half_size.x ;
+	else if (is_player_colliding_left_arena()) player.desired_p.x = arena.left_wall_visual_p + player.half_size.x ;
 	player.desired_p.y = player.p.y;
 
 	for_each_ball {
 		if (!(ball->flags & BALL_ACTIVE)) continue;
+
 		ball->desired_p = add_v2(ball->p, mul_v2(ball->dp, dt));
 
 		ball_colliding_player(ball);
@@ -425,10 +444,22 @@ simulate_game(Input *input, f32 dt, b32 *running) {
 
 	simulate_level(current_level, dt);
 
-	clear_screen_and_draw_rect((v2){0, 0}, arena_half_size, 0x000066, 0x006666, invicibility_time, first_ball_movement);
+	f32 arena_left_wall_visual_ddp = 150.f*(-arena.half_size.x - arena.left_wall_visual_p) - 7.f * arena.left_wall_visual_dp;
+	arena.left_wall_visual_dp += arena_left_wall_visual_ddp*dt;
+	arena.left_wall_visual_p += arena_left_wall_visual_ddp*square(dt)*.5f + arena.left_wall_visual_dp*dt;
+
+	f32 arena_right_wall_visual_ddp = 150.f*(arena.half_size.x - arena.right_wall_visual_p) - 7.f * arena.right_wall_visual_dp;
+	arena.right_wall_visual_dp += arena_right_wall_visual_ddp*dt;
+	arena.right_wall_visual_p += arena_right_wall_visual_ddp*square(dt)*.5f + arena.right_wall_visual_dp*dt;
+
+	f32 arena_top_wall_visual_ddp = 150.f*(arena.half_size.y - arena.top_wall_visual_p) - 7.f * arena.top_wall_visual_dp;
+	arena.top_wall_visual_dp += arena_top_wall_visual_ddp*dt;
+	arena.top_wall_visual_p += arena_top_wall_visual_ddp*square(dt)*.5f + arena.top_wall_visual_dp*dt;
+
+	clear_screen_and_draw_rect((v2){0, 0}, -arena.half_size.y, arena.top_wall_visual_p, arena.left_wall_visual_p, arena.right_wall_visual_p, 0x000066, 0x006666, invicibility_time, first_ball_movement);
 
 	for_each_block {
-		if (block->life <= 0) continue;
+		if (!(block->flags & BLOCK_ACTIVE)) continue;
 
 		simulate_block_for_level(block, current_level);
 		draw_rect(block->p, block->half_size, block->color);
@@ -496,10 +527,32 @@ simulate_game(Input *input, f32 dt, b32 *running) {
 	// Render ball
 	for_each_ball {
 		if (!(ball->flags & BALL_ACTIVE)) continue;
+
+		u32 ball_color = ball->color;
+		if (ball->flags & BALL_DESTROYED_ON_DP_Y_DOWN) ball_color = 0xffffff;
+		else if (is_comet) ball_color = 0xff9999;
+
+
 		ball->p = ball->desired_p;
-		if (ball->flags & BALL_DESTROYED_ON_DP_Y_DOWN) draw_rect(ball->p, ball->half_size, 0xffffff);
-		else if (is_comet) draw_rect(ball->p, ball->half_size, 0xff9999);
-		else draw_rect(ball->p, ball->half_size, ball->color);
+
+		ball->trail_spawner_t += dt;
+
+		if (ball->trail_spawner_t >= ball->trail_spawner) {
+			ball->trail_spawner_t -= ball->trail_spawner;
+			Ball_Trail *ball_trail = ball->trails + ball->next_trail++;
+			if (ball->next_trail >= array_count(ball->trails)) ball->next_trail = 0;
+			ball_trail->p = ball->p;
+			ball_trail->life = .002f*array_count(ball->trails);
+		}
+
+		for_each_ball_trail {
+			if (ball_trail->life <= 0.f) continue;
+			draw_transparent_rect(ball_trail->p, ball->half_size, ball_color, ball_trail->life);
+
+			ball_trail->life -= dt;
+		}
+
+		draw_rect(ball->p, ball->half_size, ball_color);
 	}
 
 	player.dp.x = (player.desired_p.x - player.p.x) / dt;
@@ -535,9 +588,9 @@ simulate_game(Input *input, f32 dt, b32 *running) {
 	test_for_win_condition();
 
 	for (unsigned int i = 0; i < number_of_life; ++i)
-		draw_rect((v2){-arena_half_size.x-4.f+i*2.5f, arena_half_size.y+2.5f}, (v2){1,1}, 0x00ffff);
+		draw_rect((v2){-arena.half_size.x-4.f+i*2.5f, arena.half_size.y+2.5f}, (v2){1,1}, 0x00ffff);
 
-	draw_number(score, (v2){arena_half_size.x-10.f, arena_half_size.y+2.5f}, 4.f, 0xffffff);
+	draw_number(score, (v2){arena.half_size.x-10.f, arena.half_size.y+2.5f}, 4.f, 0xffffff);
 
 	if (pressed(BUTTON_ESC)) *running = false;
 
@@ -548,5 +601,7 @@ simulate_game(Input *input, f32 dt, b32 *running) {
 	if (released(BUTTON_DOWN)) dt_multiplier = 1.f;
 	if (is_down(BUTTON_UP)) invicibility_time += dt;
 #endif
+
+	draw_messages(dt);
 
 }
