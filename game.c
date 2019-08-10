@@ -1,9 +1,6 @@
 #include "collectibles.c"
 #include "game_struct.c"
 #include "console.c"
-
-
-
 #include "macros.c"
 
 internal Block*
@@ -23,6 +20,35 @@ get_next_available_ball() {
 	}
 	invalid_code_path;
 	return 0;
+}
+
+inline Particle*
+spawn_particle(v2 p, f32 dp_scale, v2 half_size, f32 life, f32 life_d, u32 color) {
+	Particle *particle = particles + next_particle++;
+	if (next_particle >= array_count(particles)) next_particle = 0;
+
+	particle->p = p;
+	particle->dp = (v2){random_bilateral()*dp_scale, random_bilateral()*dp_scale};
+	particle->half_size = half_size;
+	particle->life = life;
+	particle->life_d = life_d;
+	particle->color = color;
+	return particle;
+}
+
+inline void
+spawn_particle_explosion(unsigned int count, v2 p, f32 dp_scale, f32 base_size, f32 base_life, u32 color) {
+	for (unsigned int i = 0; i < count; ++i) {
+		base_size += random_bilateral()*.1f*base_size;
+		base_life += random_bilateral()*.1f*base_size; //A VOIR
+		Particle *particle = spawn_particle(p, dp_scale, (v2){base_size, base_size}, base_life, 1.f, color);
+	}
+}
+
+inline void
+increase_ball_size(Ball *ball) {
+	ball->half_size.x += .15f/ball->half_size.x;
+	ball->half_size.y += .15f/ball->half_size.y;
 }
 
 internal void
@@ -53,7 +79,7 @@ create_aligned_blocks(int num_x, int num_y, v2 block_half_size, f32 spacing_x, f
 				}
 			}
 			else {
-				u8 k = y*255/num_y;
+				u8 k = (u8)(y*255/num_y);
 				block->color = make_color_from_rgb(k, 255, 128);
 				block->flags = BLOCK_RIVAL_A| BLOCK_ACTIVE;
 				block->ball_speed_multiplier = base_speed_multiplier + (f32)y*1.25f/(f32)num_y;
@@ -76,8 +102,8 @@ create_invaders(int num_x, int num_y, v2 block_half_size, f32 base_speed_multipl
 	f32 x_offset = ((f32)size_x / 2.f) * block_half_size.x * 2.f * (f32)num_x - block_half_size.x + (3.f * block_half_size.x * ((f32)num_x-1));
 	f32 y_offset = -40.f;
 
-	for (unsigned int i = 0; i < num_x; ++i) {
-		for (unsigned int j = 0; j < num_y; ++j) {
+	for (int i = 0; i < num_x; ++i) {
+		for (int j = 0; j < num_y; ++j) {
 			for (unsigned int p = 0; p < array_count(invader); ++p) {
 				char *at = invader[p];
 				f32 d = 0;
@@ -126,7 +152,6 @@ reset_ball_coll() {
 	balls[0].collision_test_p = balls[0].p;
 	balls[0].color = 0x66bbff;
 	balls[0].flags |= BALL_ACTIVE | BALL_RIVAL_A;
-	zero_array(balls[0].trails);
 	balls[0].next_trail = 0;
 	balls[0].trail_spawner = .005f;
 	balls[0].trail_spawner_t = 0.f;
@@ -145,9 +170,8 @@ reset_ball_coll() {
 		balls[1].collision_test_p = balls[1].p;		
 		balls[1].color = 0xffaa66;
 		balls[1].flags |= BALL_ACTIVE | BALL_RIVAL_B | BALL_FIXED_SPEED;
-		zero_array(balls[1].trails);
 		balls[1].next_trail = 0;
-		balls[1].trail_spawner = .001f;
+		balls[1].trail_spawner = .005f;
 		balls[1].trail_spawner_t = 0.f;
 	}
 	first_ball_movement = true;
@@ -263,8 +287,21 @@ restart_game() {
 	score = 0;
 
 	player.p = (v2){0, -35};
+	player.dp = (v2){0, 0};
 	player.desired_p = (v2){0, -35};
-	player.half_size = (v2){10, 2};
+	player.base_half_size = (v2){10, 2};
+	player.half_size = player.base_half_size;
+
+	player.color = 0x80ff00;
+
+	player.visual_p = player.p;
+	player.visual_dp = player.dp;
+	player.visual_ddp = (v2){0, 0};
+
+	player.squeeze_factor = 0.f;
+	player.squeeze_factor_d = 0.f;
+	player.squeeze_factor_dd = 0.f;
+
 	player.is_twinkling = false;
 	player.twinkle = false;
 	player.twinkling_t = 0.f;
@@ -281,6 +318,10 @@ restart_game() {
 	arena.right_wall_visual_dp = 0.f;
 	arena.top_wall_visual_p = arena.half_size.y;
 	arena.top_wall_visual_dp = 0.f;
+	arena.bottom_wall_visual_p = -arena.half_size.y;
+
+	arena.arena_color = 0x000066;
+	arena.wall_color = 0x006666;
 
 	num_blocks = 0;
 	blocks_destroyed = 0;
@@ -307,7 +348,7 @@ restart_game() {
 					if (y%2) block->relative_p.x = x*block->half_size.x*2.5f - x_offset;
 					else block->relative_p.x = x*block->half_size.x*2.5f - x_offset + block->half_size.x;
 					block->relative_p.y = y*block->half_size.y*2.5f - y_offset;
-					block->color = make_color_from_grey(y*255/num_y);
+					block->color = make_color_from_grey((u8)(y*255/num_y));
 					block->ball_speed_multiplier = 1.f + (f32)y*1.25f/(f32)num_y;
 					block->flags = BLOCK_RIVAL_A | BLOCK_ACTIVE;
 					block->coll = 0;
@@ -348,7 +389,11 @@ test_for_win_condition() {
 }
 
 internal void
-block_destroyed(Block *block) {
+block_destroyed(Block *block, v2 ball_p) {
+	spawn_particle_explosion(20, block->p, 12.f, 1.5f, .15f, block->color);
+	Particle *block_particle = spawn_particle(block->p, 0.f, block->half_size, 1.f, 5.f, block->color);
+	block_particle->dp = sub_v2(block->p, ball_p);
+
 	block->flags &= ~BLOCK_ACTIVE;
 	++blocks_destroyed;
 	f32 delta = max(0.01f, (current_time - combo_time));
@@ -379,9 +424,8 @@ spawn_triple_shot() {
 		ball->desired_p = ball->p;
 		ball->collision_test_p = ball->p;
 		ball->flags |= BALL_ACTIVE | BALL_DESTROYED_ON_DP_Y_DOWN | BALL_RIVAL_A;
-		zero_array(ball->trails);
 		ball->next_trail = 0;
-		ball->trail_spawner = .001f;
+		ball->trail_spawner = .005f;
 		ball->trail_spawner_t = 0.f;
 	}
 }
@@ -389,28 +433,48 @@ spawn_triple_shot() {
 #include "collision.c"
 
 internal void
-simulate_game(Input *input, f32 dt, b32 *running) {
+simulate_game(Input *input, f32 dt, b32 *is_running) {
 
 	dt *= dt_multiplier;
 
 	if (!initialized) {
 		initialized = true;
-		Level current_level = 0;
+		current_level = 0;
 		restart_game();
 	}
 
-	if (reverse_time > 0 && slow_player_t <= 0) player.desired_p.x = player.p.x - pixels_dp_to_world(input->mouse_dp).x;
-	else if (reverse_time <= 0 && slow_player_t > 0) player.desired_p.x = player.p.x + .5f * pixels_dp_to_world(input->mouse_dp).x;
-	else if (reverse_time > 0 && slow_player_t > 0) player.desired_p.x = player.p.x - .5f * pixels_dp_to_world(input->mouse_dp).x;
-	else player.desired_p.x = player.p.x + pixels_dp_to_world(input->mouse_dp).x;
+	f32 speed_multiplier = 1.f;
+	if (slow_player_t > 0) speed_multiplier = .5f;
+	f32 mouse_world_dp_x = speed_multiplier * clampf(-10.f, pixels_dp_to_world(input->mouse_dp).x, 10.f);
+	if (reverse_time > 0 ) player.desired_p.x = player.p.x - mouse_world_dp_x;
+	else player.desired_p.x = player.p.x + mouse_world_dp_x;
 
-	player.half_size = (v2){10.f + (.01f*absf(player.dp.x)), 2.f + (-.0005f*absf(player.dp.x))};
+	if (player.desired_p.x < arena.left_wall_visual_p + player.base_half_size.x) {
+		player.squeeze_factor_d = (player.desired_p.x - arena.left_wall_visual_p - player.base_half_size.x) * -1.f;
+		player.desired_p.x = arena.left_wall_visual_p + player.base_half_size.x;
+		player.dp.x = 0.f;
+	}
+	else if (player.desired_p.x > arena.right_wall_visual_p - player.base_half_size.x) {
+		player.squeeze_factor_d = (player.desired_p.x - arena.right_wall_visual_p + player.base_half_size.x) * 1.f;
+		player.desired_p.x = arena.right_wall_visual_p - player.base_half_size.x;
+		player.dp.x = 0.f;
+	}
 
-	if ((player.desired_p.x - player.half_size.x < arena.left_wall_visual_p) || (player.desired_p.x + player.half_size.x > arena.right_wall_visual_p)) player.half_size = (v2){10, 2};
-
-	if (is_player_colliding_right_arena()) player.desired_p.x = arena.right_wall_visual_p - player.half_size.x ;
-	else if (is_player_colliding_left_arena()) player.desired_p.x = arena.left_wall_visual_p + player.half_size.x ;
 	player.desired_p.y = player.p.y;
+	player.visual_p.y = player.p.y;
+
+	player.squeeze_factor_dd = -100.f*player.squeeze_factor - 10.f*player.squeeze_factor_d;
+	player.squeeze_factor_d += player.squeeze_factor_dd*dt;
+	player.squeeze_factor += player.squeeze_factor_dd*square(dt)*.5f + player.squeeze_factor_d*dt;
+
+	player.visual_ddp.x = 1500.f*(player.desired_p.x - player.visual_p.x) - 40.f * player.visual_dp.x;
+	player.visual_dp = add_v2(player.visual_dp, mul_v2(player.visual_ddp, dt));
+	player.visual_p = add_v2(player.visual_p, add_v2(mul_v2(player.visual_dp, dt),
+													 mul_v2(player.visual_ddp, square(dt)*.5f)));
+
+	player.half_size.x = player.base_half_size.x + (dt*1.f*absf(player.dp.x)) - player.squeeze_factor;
+	player.half_size.y = max(.5f, player.base_half_size.y - dt*0.05f*absf(player.dp.x) + player.squeeze_factor);
+
 
 	for_each_ball {
 		if (!(ball->flags & BALL_ACTIVE)) continue;
@@ -443,26 +507,12 @@ simulate_game(Input *input, f32 dt, b32 *running) {
 	}
 
 	simulate_level(current_level, dt);
-
-	f32 arena_left_wall_visual_ddp = 150.f*(-arena.half_size.x - arena.left_wall_visual_p) - 7.f * arena.left_wall_visual_dp;
-	arena.left_wall_visual_dp += arena_left_wall_visual_ddp*dt;
-	arena.left_wall_visual_p += arena_left_wall_visual_ddp*square(dt)*.5f + arena.left_wall_visual_dp*dt;
-
-	f32 arena_right_wall_visual_ddp = 150.f*(arena.half_size.x - arena.right_wall_visual_p) - 7.f * arena.right_wall_visual_dp;
-	arena.right_wall_visual_dp += arena_right_wall_visual_ddp*dt;
-	arena.right_wall_visual_p += arena_right_wall_visual_ddp*square(dt)*.5f + arena.right_wall_visual_dp*dt;
-
-	f32 arena_top_wall_visual_ddp = 150.f*(arena.half_size.y - arena.top_wall_visual_p) - 7.f * arena.top_wall_visual_dp;
-	arena.top_wall_visual_dp += arena_top_wall_visual_ddp*dt;
-	arena.top_wall_visual_p += arena_top_wall_visual_ddp*square(dt)*.5f + arena.top_wall_visual_dp*dt;
-
-	clear_screen_and_draw_rect((v2){0, 0}, -arena.half_size.y, arena.top_wall_visual_p, arena.left_wall_visual_p, arena.right_wall_visual_p, 0x000066, 0x006666, invicibility_time, first_ball_movement);
+	clear_arena_screen((v2){0, 0}, arena.top_wall_visual_p, arena.left_wall_visual_p, arena.right_wall_visual_p, arena.arena_color);
 
 	for_each_block {
 		if (!(block->flags & BLOCK_ACTIVE)) continue;
 
 		simulate_block_for_level(block, current_level);
-		draw_rect(block->p, block->half_size, block->color);
 
 		if (!first_ball_movement) {
 			for_each_ball {
@@ -473,7 +523,11 @@ simulate_game(Input *input, f32 dt, b32 *running) {
 				}
 			}
 		}
+		draw_rect(block->p, block->half_size, block->color);
 	}
+
+	// Check Win
+	test_for_win_condition();
 
 	for_each_coll {
 		if (coll->kind == COLL_INACTIVE) continue;
@@ -524,6 +578,17 @@ simulate_game(Input *input, f32 dt, b32 *running) {
 		draw_rect(coll->p, coll_half_size, 0xffff99);
 	}
 
+	// Render particles
+	for (unsigned int i = 0; i < array_count(particles); ++i) {
+		Particle *p = particles + i;
+		if (p->life <= 0.f) continue;
+
+		p->life -= p->life_d*dt;
+		p->p = add_v2(p->p, mul_v2(p->dp, dt));
+
+		draw_transparent_rect(p->p, p->half_size, p->color, p->life);
+	}
+
 	// Render ball
 	for_each_ball {
 		if (!(ball->flags & BALL_ACTIVE)) continue;
@@ -537,37 +602,34 @@ simulate_game(Input *input, f32 dt, b32 *running) {
 
 		ball->trail_spawner_t += dt;
 
-		if (ball->trail_spawner_t >= ball->trail_spawner) {
-			ball->trail_spawner_t -= ball->trail_spawner;
-			Ball_Trail *ball_trail = ball->trails + ball->next_trail++;
-			if (ball->next_trail >= array_count(ball->trails)) ball->next_trail = 0;
-			ball_trail->p = ball->p;
-			ball_trail->life = .002f*array_count(ball->trails);
-		}
-
-		for_each_ball_trail {
-			if (ball_trail->life <= 0.f) continue;
-			draw_transparent_rect(ball_trail->p, ball->half_size, ball_color, ball_trail->life);
-
-			ball_trail->life -= dt;
+		while (ball->trail_spawner_t >= ball->trail_spawner) {
+			f32 speed_t = map_into_range_normalized(2500, len_sq(ball->dp), 100000);
+			ball->trail_spawner_t -= 50.f/len_sq(ball->dp);
+			u32 color = lerp_color(0x00bbee, speed_t, 0x33ffff);
+			f32 life = .32f;
+			Particle *p = spawn_particle(ball->p, 2.f, (v2){ball->half_size.x, ball->half_size.y}, life, 1.f, color);
 		}
 
 		draw_rect(ball->p, ball->half_size, ball_color);
+		ball->half_size.x -= dt*max(1.f, ball->half_size.x);
+		if (ball->half_size.x < .75f) ball->half_size.x = .75;
+		ball->half_size.y -= dt*max(1.f, ball->half_size.y);
+		if (ball->half_size.y < .75f) ball->half_size.y = .75;
 	}
 
-	player.dp.x = (player.desired_p.x - player.p.x) / dt;
+	player.dp.x = (player.desired_p.x - player.visual_p.x) / dt;
 	player.p = player.desired_p;
 
 	if (invicibility_time > 0.f) invicibility_time -= dt;
 	if (strong_blocks_time > 0.f) strong_blocks_time -= dt;
 	if (reverse_time > 0.f) reverse_time -= dt;
 	if (slow_player_t > 0.f) slow_player_t -= dt;
-	u32 player_color = 0x80ff00;
-	if (number_of_triple_shots > 0) player_color = 0xffffff;
-	else if (number_of_comet > 0) player_color = 0xff9999;
-	else if (reverse_time > 0) player_color = 0x7f00ff;
-	else if (slow_player_t > 0) player_color = 0x489000;
-	if (!player.twinkle) draw_rect(player.p, player.half_size, player_color);
+	player.color = 0x80ff00;
+	if (number_of_triple_shots > 0) player.color = 0xffffff;
+	else if (number_of_comet > 0) player.color = 0xff9999;
+	else if (reverse_time > 0) player.color = 0x7f00ff;
+	else if (slow_player_t > 0) player.color = 0x489000;
+	if (!player.twinkle) draw_rect(player.visual_p, player.half_size, player.color);
 
 	if (player.is_twinkling) {
 		player.twinkling_t += dt;
@@ -582,17 +644,26 @@ simulate_game(Input *input, f32 dt, b32 *running) {
 		}
 	}
 
+	f32 arena_left_wall_visual_ddp = 150.f*(-arena.half_size.x - arena.left_wall_visual_p) - 7.f * arena.left_wall_visual_dp;
+	arena.left_wall_visual_dp += arena_left_wall_visual_ddp*dt;
+	arena.left_wall_visual_p += arena_left_wall_visual_ddp*square(dt)*.5f + arena.left_wall_visual_dp*dt;
 
+	f32 arena_right_wall_visual_ddp = 150.f*(arena.half_size.x - arena.right_wall_visual_p) - 7.f * arena.right_wall_visual_dp;
+	arena.right_wall_visual_dp += arena_right_wall_visual_ddp*dt;
+	arena.right_wall_visual_p += arena_right_wall_visual_ddp*square(dt)*.5f + arena.right_wall_visual_dp*dt;
 
-	// Check Win
-	test_for_win_condition();
+	f32 arena_top_wall_visual_ddp = 150.f*(arena.half_size.y - arena.top_wall_visual_p) - 7.f * arena.top_wall_visual_dp;
+	arena.top_wall_visual_dp += arena_top_wall_visual_ddp*dt;
+	arena.top_wall_visual_p += arena_top_wall_visual_ddp*square(dt)*.5f + arena.top_wall_visual_dp*dt;
 
-	for (unsigned int i = 0; i < number_of_life; ++i)
+	draw_arena_rects((v2){0, 0}, arena.bottom_wall_visual_p, arena.top_wall_visual_p, arena.left_wall_visual_p, arena.right_wall_visual_p, arena.wall_color, invicibility_time, first_ball_movement);
+
+	for (int i = 0; i < number_of_life; ++i)
 		draw_rect((v2){-arena.half_size.x-4.f+i*2.5f, arena.half_size.y+2.5f}, (v2){1,1}, 0x00ffff);
 
 	draw_number(score, (v2){arena.half_size.x-10.f, arena.half_size.y+2.5f}, 4.f, 0xffffff);
 
-	if (pressed(BUTTON_ESC)) *running = false;
+	if (pressed(BUTTON_ESC)) *is_running = false;
 
 #if DEVELOPMENT
 	if (pressed(BUTTON_LEFT)) restart_game(--current_level);

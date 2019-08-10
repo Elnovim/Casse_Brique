@@ -14,6 +14,9 @@ struct {
 	f32 top_wall_visual_dp;
 	f32 bottom_wall_visual_p;
 
+	u32 arena_color;
+	u32 wall_color;
+
 } typedef Arena;
 
 struct {
@@ -21,6 +24,17 @@ struct {
 	v2 desired_p;
 	v2 dp;
 	v2 half_size;
+	v2 base_half_size;
+
+	u32 color;
+
+	v2 visual_p;
+	v2 visual_dp;
+	v2 visual_ddp;
+
+	f32 squeeze_factor;
+	f32 squeeze_factor_d;
+	f32 squeeze_factor_dd;
 
 	b32 is_twinkling;
 	b32 twinkle;
@@ -31,21 +45,25 @@ struct {
 
 struct {
 	v2 p;
+	v2 dp;
+	v2 half_size;
+
+	u32 color;
 	f32 life;
-} typedef Ball_Trail;
+	f32 life_d;
+} typedef Particle;
 
 struct {
 	v2 p;
 	v2 dp;
 	v2 half_size;
-	b32 base_speed;
+	f32 base_speed;
 	f32 speed_multiplier;
 	v2 collision_test_p;
 	v2 desired_p;
 	u32 color;
 	u32 flags;
 
-	Ball_Trail trails[128];
 	int next_trail;
 	f32 trail_spawner;
 	f32 trail_spawner_t;
@@ -110,6 +128,9 @@ Player player;
 b32 first_ball_movement;
 Ball balls[16];
 int next_ball;
+
+Particle particles[1024];
+int next_particle;
 
 Block blocks[256];
 int num_blocks;

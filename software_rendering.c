@@ -221,17 +221,37 @@ draw_number(int number, v2 p, f32 size, u32 color) {
 }
 
 internal void
-clear_screen_and_draw_rect(v2 p, f32 bottom, f32 top, f32 left, f32 right, u32 color, u32 clear_color, f32 invisibility_time, b32 first_ball_movement) {
-	// Convert the untis to pixel and call draw_rect_in_pixels
+clear_arena_screen(v2 p, f32 top, f32 left, f32 right, u32 color) {
 	f32 aspect_multiplier = calculate_aspect_multiplier();
 
-	left *= (f32)aspect_multiplier * scale;
-	right *= (f32)aspect_multiplier * scale;
-	top *= (f32)aspect_multiplier * scale;
-	bottom *= (f32)aspect_multiplier * scale;
+	top *= aspect_multiplier * scale;
+	left *= aspect_multiplier * scale;
+	right *= aspect_multiplier * scale;
 
-	p.x *= (f32)aspect_multiplier * scale;
-	p.y *= (f32)aspect_multiplier * scale;
+	p.x *= aspect_multiplier * scale;
+	p.y *= aspect_multiplier * scale;
+
+	p.x += (f32)render_buffer.width * .5f;
+	p.y += (f32)render_buffer.height * .5f;
+
+	int x0 = (int)(p.x+left);
+	int x1 = (int)(p.x+right);
+	int y1 = (int)(p.y+top);
+
+	draw_rect_in_pixels(x0, 0, x1, y1, color);
+}
+
+internal void
+draw_arena_rects(v2 p, f32 bottom, f32 top, f32 left, f32 right, u32 color, f32 invisibility_time, b32 first_ball_movement) {
+	f32 aspect_multiplier = calculate_aspect_multiplier();
+
+	bottom *= aspect_multiplier * scale;
+	top *= aspect_multiplier * scale;
+	left *= aspect_multiplier * scale;
+	right *= aspect_multiplier * scale;
+
+	p.x *= aspect_multiplier * scale;
+	p.y *= aspect_multiplier * scale;
 
 	p.x += (f32)render_buffer.width * .5f;
 	p.y += (f32)render_buffer.height * .5f;
@@ -241,14 +261,10 @@ clear_screen_and_draw_rect(v2 p, f32 bottom, f32 top, f32 left, f32 right, u32 c
 	int x1 = (int)(p.x+right);
 	int y1 = (int)(p.y+top);
 
-	if (invisibility_time > 0 || first_ball_movement){
-		draw_rect_in_pixels(x0, y0, x1, y1, color);
-		draw_rect_in_pixels(x0, 0, x1, y0, 0xafdfdf); //HardCoded
-
+	draw_rect_in_pixels(0, 0, x0, render_buffer.height, color);
+	draw_rect_in_pixels(x1, 0, render_buffer.width, render_buffer.height, color);
+	draw_rect_in_pixels(x0, y1, x1, render_buffer.height, color);
+	if (invisibility_time > 0 || first_ball_movement) {
+		draw_rect_in_pixels(x0, 0, x1, y0, 0xafdfdf);
 	}
-	else draw_rect_in_pixels(x0, 0, x1, y1, color);
-
-	draw_rect_in_pixels(0, 0, x0, render_buffer.height, clear_color);
-	draw_rect_in_pixels(x1, 0, render_buffer.width, render_buffer.height, clear_color);
-	draw_rect_in_pixels(x0, y1, x1, render_buffer.height, clear_color);
 }

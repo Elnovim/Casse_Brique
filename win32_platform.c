@@ -69,10 +69,10 @@ LRESULT window_callback (HWND window, UINT message, WPARAM w_param, LPARAM l_par
 	return result;
 }
 
-int WinMain(HINSTANCE hInstance,
-			HINSTANCE hPrevInstance,
-			LPSTR lpCmdLine,
-			int nShowCmd) {
+int __stdcall WinMain(HINSTANCE hInstance,
+					  HINSTANCE hPrevInstance,
+					  LPSTR lpCmdLine,
+					  int nShowCmd) {
 
 	SYSTEMTIME st;
 	GetSystemTime(&st);

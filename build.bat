@@ -4,7 +4,9 @@ pushd ..\build
 del *.pdb > NUL 2> NUL
 echo WAITING FOR PDB > lock.tmp
 
-cl -nologo -Zi -FC -DDEVELOPMENT=0 ..\Code\win32_platform.c /link user32.lib gdi32.lib -incremental:no -opt:ref
+set warnings_to_ignore=-wd4201 -wd4204 -wd4255 -wd4668 -wd4820 -wd4100 -wd4189 -wd4711 -wd4738 -wd4710 -wd5045
+
+cl -nologo -O2 -Zi -FC -WX -Wall -DDEVELOPMENT=0 %warnings_to_ignore% ..\Code\win32_platform.c /link user32.lib gdi32.lib -incremental:no -opt:ref
 
 del lock.tmp
 del *.obj

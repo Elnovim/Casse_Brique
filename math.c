@@ -5,6 +5,13 @@ clamp(int min, int val, int max) {
 	return val;
 }
 
+internal f32
+clampf(f32 min, f32 val, f32 max) {
+	if (val < min) return min;
+	if (val > max) return max;
+	return val;
+}
+
 // Color
 inline u32
 make_color_from_grey(u8 grey) {
@@ -47,6 +54,12 @@ square(f32 a) {
 	return a*a;
 }
 
+inline f32
+map_into_range_normalized(f32 min, f32 val, f32 max) {
+	f32 range = max - min;
+	return clampf(0, (val-min)/range, 1);
+}
+
 // Vector 2
 
 struct {
@@ -75,6 +88,11 @@ mul_v2(v2 a, f32 s) {
 	return (v2){s * a.x, s * a.y};
 }
 
+inline f32
+len_sq(v2 v) {
+    return square(v.x) + square(v.y);
+}
+
 struct {
 	union {
 		struct {
@@ -98,7 +116,7 @@ sub_v2i(v2i a, v2i b) {
 
 inline v2i
 mul_v2i(v2i a, f32 s) {
-	return (v2i){s * a.x, s * a.y};
+	return (v2i){(int)s * a.x, (int)s * a.y};
 }
 
 // Random
@@ -136,4 +154,14 @@ random_b32() {
 inline b32
 random_choice(int chance) {
 	return random_u32()%chance == 0;
+}
+
+inline f32
+random_unilateral() {
+	return (f32)random_u32() / (f32)MAX_U32;
+}
+
+inline f32
+random_bilateral() {
+	return random_unilateral() * 2.f - 1.f;
 }

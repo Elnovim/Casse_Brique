@@ -17,6 +17,8 @@ typedef double f64;
 
 typedef int b32;
 
+#define MAX_U32 UINT32_MAX
+
 #define true 1
 #define false 0
 
