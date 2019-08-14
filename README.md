@@ -11,9 +11,13 @@ Sprites et animations créées sous Pixaki - iOs
 Commandes : 
 
 Souris :                        Déplacer joueur
+
 F5 :                            Changer la résolution 
+
 Escape :                        Quitter le jeu
+
 Flèche gauche / flèche droite : Changer de niveaux
+
 
 Jeu ne fonctionnant que sous Windows
 Exécuter : win_platform32.exe dans le dossier build.
