@@ -22,11 +22,7 @@ Left arrow / Right arrow : Change level
 
 Move the "Sprites" directory in the OS directory that fits the environnement who want to play the game ("Windows" or "Unix" directory)
 
-* "Windows" directory to build and play the game under Window OS (tested under Windowd 10)
-
-Run win_platform32.exe in the "build" directory
-
-If you want to modify the code, build the build.bat file from a developer command prompt for VS2017 in the "Code" directory.
+* "Windows" directory to build and play the game under Window OS (tested under Windowd 10)\n Run win_platform32.exe in the "build" directory \n If you want to modify the code, build the build.bat file from a developer command prompt for VS2017 in the "Code" directory.
 
 *"Unix" directory to build and play the game under Unix OS (tested under Ubuntu 16.04)
 
