@@ -6,7 +6,6 @@ Implementation in C from scratch of a break out game.
 
 Helped with live and youtube 'tutorials' of Dan Zaidan
 
-
 Twitch : https://www.twitch.tv/danzaidantutoriaux
 YouTube : https://www.youtube.com/channel/UCkG6WU8eYvNYOgMhnpAUf4Q
 
@@ -32,7 +31,7 @@ Move the "Sprites" directory in the OS directory that fits the environnement who
    
    -If you want to modify the code, build the build.bat file from a developer command prompt for VS2017 in the "Code" directory.
 
-2. "Unix" directory to build and play the game under Unix OS (tested under Ubuntu 16.04)
+2. "Unix" or "MacOS" directory to build and play the game under Unix OS (tested under Ubuntu 16.04) or MacOS (no tested)
    
    -Need the installation of the SDL2 library : sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
    
@@ -73,9 +72,7 @@ Déplacer le dossier "Sprites" dans le dossier OS correspondant à l'environneme
 
    -Si vous souhaitez modifier le code, compilez avec un invité de commande développer pour VS2017 le fichier build.bat dans le dossier "Code".
 
-
-
-2. Dossier "Unix" pour compiler et lancer le jeu sous Unix (testé sous Ubuntu 16.04)
+2. Dossier "Unix" ou "MacOS" pour compiler et lancer le jeu sous Unix (testé sous Ubuntu 16.04) ou MacOS (non testé)
 
    -Nécessite l'installation de la librairie SDL2 : sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
 
