@@ -22,7 +22,7 @@ Left arrow / Right arrow : Change level
 
 Move the "Sprites" directory in the OS directory that fits the environnement who want to play the game ("Windows" or "Unix" directory)
 
-*"Windows" directory to build and play the game under Window OS (tested under Windowd 10)
+* "Windows" directory to build and play the game under Window OS (tested under Windowd 10)
 
 Run win_platform32.exe in the "build" directory
 
