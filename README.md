@@ -12,13 +12,13 @@ Sprites and animations done under Pixaki apps - iOs
 
 Commands :
 
-Mouse : Move the player
+* Mouse : Move the player
 
-F5 : Change resolution
+* F5 : Change resolution
 
-Escape : Close the game
+* Escape : Close the game
 
-Left arrow / Right arrow : Change level
+* Left arrow / Right arrow : Change level
 
 Move the "Sprites" directory in the OS directory that fits the environnement who want to play the game ("Windows" or "Unix" directory)
 
@@ -50,13 +50,13 @@ Sprites et animations créées sous Pixaki - iOs
 
 Commandes : 
 
-Souris :                        Déplacer joueur
+* Souris :                        Déplacer joueur
 
-F5 :                            Changer la résolution 
+* F5 :                            Changer la résolution 
 
-Echape :                        Quitter le jeu
+* Echape :                        Quitter le jeu
 
-Flèche gauche / flèche droite : Changer de niveaux
+* Flèche gauche / flèche droite : Changer de niveaux
 
 Déplacer le dossier "Sprites" dans le dossier OS correspondant à l'environnement où vous souhaitez lancer le jeu (dossier "Windows" ou "Unix")
 
