@@ -22,15 +22,14 @@ Left arrow / Right arrow : Change level
 
 Move the "Sprites" directory in the OS directory that fits the environnement who want to play the game ("Windows" or "Unix" directory)
 
-* "Windows" directory to build and play the game under Window OS (tested under Windowd 10)\n Run win_platform32.exe in the "build" directory \n If you want to modify the code, build the build.bat file from a developer command prompt for VS2017 in the "Code" directory.
+1. "Windows" directory to build and play the game under Window OS (tested under Windowd 10)
+   -Run win_platform32.exe in the "build" directory 
+   -If you want to modify the code, build the build.bat file from a developer command prompt for VS2017 in the "Code" directory.
 
-*"Unix" directory to build and play the game under Unix OS (tested under Ubuntu 16.04)
-
-Need the installation of the SDL2 library : sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
-
-Run ./build.sh in a prompt (may need a chmod)
-
-Run unix_platform.out
+2. "Unix" directory to build and play the game under Unix OS (tested under Ubuntu 16.04)
+   -Need the installation of the SDL2 library : sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
+   -Run ./build.sh in a prompt (may need a chmod)
+   -Run unix_platform.out
 
 ================================================================================================================================================
 
