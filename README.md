@@ -1,8 +1,10 @@
 # Casse_Brique
 
+**Presentation :**
+
 Implementation in C from scratch of a break out game.
 
-With live and youtube 'tutorials' of Dan Zaidan
+Helped with live and youtube 'tutorials' of Dan Zaidan
 
 
 Twitch : https://www.twitch.tv/danzaidantutoriaux
@@ -10,7 +12,7 @@ YouTube : https://www.youtube.com/channel/UCkG6WU8eYvNYOgMhnpAUf4Q
 
 Sprites and animations done under Pixaki apps - iOs
 
-Commands :
+**Commands :**
 
 * Mouse : Move the player
 
@@ -19,6 +21,8 @@ Commands :
 * Escape : Close the game
 
 * Left arrow / Right arrow : Change level
+
+**Build and run :**
 
 Move the "Sprites" directory in the OS directory that fits the environnement who want to play the game ("Windows" or "Unix" directory)
 
@@ -38,17 +42,18 @@ Move the "Sprites" directory in the OS directory that fits the environnement who
 
 ================================================================================================================================================
 
+**Présentation :**
 
 Implémentation d'un casse_brique en C 'from scratch' 
 
-Selon les 'tutoriaux' live et youtube de Dan Zaidan :
+Aidé avec les 'tutoriaux' live et youtube de Dan Zaidan :
 
 Twitch : https://www.twitch.tv/danzaidan
 YouTube : https://www.youtube.com/channel/UCkG6WU8eYvNYOgMhnpAUf4Q
 
 Sprites et animations créées sous Pixaki - iOs
 
-Commandes : 
+**Commandes :**
 
 * Souris :                        Déplacer joueur
 
@@ -57,6 +62,8 @@ Commandes :
 * Echape :                        Quitter le jeu
 
 * Flèche gauche / flèche droite : Changer de niveaux
+
+**Compilation et exécution :**
 
 Déplacer le dossier "Sprites" dans le dossier OS correspondant à l'environnement où vous souhaitez lancer le jeu (dossier "Windows" ou "Unix")
 
