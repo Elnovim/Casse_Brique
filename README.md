@@ -29,8 +29,11 @@ Move the "Sprites" directory in the OS directory that fits the environnement who
    -If you want to modify the code, build the build.bat file from a developer command prompt for VS2017 in the "Code" directory.
 
 2. "Unix" directory to build and play the game under Unix OS (tested under Ubuntu 16.04)
+   
    -Need the installation of the SDL2 library : sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
+   
    -Run ./build.sh in a prompt (may need a chmod)
+   
    -Run unix_platform.out
 
 ================================================================================================================================================
@@ -57,18 +60,18 @@ Flèche gauche / flèche droite : Changer de niveaux
 
 Déplacer le dossier "Sprites" dans le dossier OS correspondant à l'environnement où vous souhaitez lancer le jeu (dossier "Windows" ou "Unix")
 
-*Dossier "Windows" pour compiler et lancer le jeu sous Windows (testé sous Windows 10)
+1. Dossier "Windows" pour compiler et lancer le jeu sous Windows (testé sous Windows 10)
 
-Exécutez win_platform32.exe dans le dossier "build".
+   -Exécutez win_platform32.exe dans le dossier "build".
 
-Si vous souhaitez modifier le code, compilez avec un invité de commande développer pour VS2017 le fichier build.bat dans le dossier "Code".
+   -Si vous souhaitez modifier le code, compilez avec un invité de commande développer pour VS2017 le fichier build.bat dans le dossier "Code".
 
 
 
-*Dossier "Unix" pour compiler et lancer le jeu sous Unix (testé sous Ubuntu 16.04)
+2. Dossier "Unix" pour compiler et lancer le jeu sous Unix (testé sous Ubuntu 16.04)
 
-Nécessite l'installation de la librairie SDL2 : sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
+   -Nécessite l'installation de la librairie SDL2 : sudo apt install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
 
-Lancez ./build.sh depuis un terminal (peut nécessiter un chmod)
+   -Lancez ./build.sh depuis un terminal (peut nécessiter un chmod)
 
-Lancez unix_platform.out
+   -Lancez unix_platform.out
