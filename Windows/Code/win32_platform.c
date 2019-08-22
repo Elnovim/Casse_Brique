@@ -129,7 +129,7 @@ int __stdcall WinMain(HINSTANCE hInstance,
 	int display_size_ind = 0;
 	int display_sizes[DISPLAY_SIZE_COUNT][2] = {{1280, 720}, {1920, 1080}, {2560, 1440}};
 
-	int width = display_size[display_size_ind][0];
+	int width = display_sizes[display_size_ind][0];
 	int height = display_sizes[display_size_ind][1];
 
 	HWND window = CreateWindowExA(0, // Windows Style
@@ -236,8 +236,8 @@ int __stdcall WinMain(HINSTANCE hInstance,
 		if (input.buttons[BUTTON_F5].is_down && input.buttons[BUTTON_F5].changed) {
 
 			display_size_ind = (display_size_ind + 1) % DISPLAY_SIZE_COUNT;
-			int width = min(max_w, display_sizes[display_size_ind][0]);
-			int height = min(max_h, display_sizes[display_size_ind][1]);
+			width = min(max_w, display_sizes[display_size_ind][0]);
+			height = min(max_h, display_sizes[display_size_ind][1]);
 			if (width == max_w || height == max_h) display_size_ind = DISPLAY_SIZE_COUNT - 1;
 			SetWindowPos(window, HWND_TOP, (max_w-width)/2, (max_h-height)/2, width, height, SWP_SHOWWINDOW);
 		}

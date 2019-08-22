@@ -461,7 +461,7 @@ simulate_game(Input *input, f32 dt, b32 *is_running) {
 		bitmap_invincibility = load_gif("..\\Sprites\\Animations\\Powerups\\invincibility.gif");
 		bitmap_triple_shoot = load_gif("..\\Sprites\\Animations\\Powerups\\triple_shoot.gif");
 		bitmap_comet = load_gif("..\\Sprites\\Animations\\Powerups\\comet.gif");
-		bitmap_loose_life = load_gif("..\\Sprites\\Animations\\Powerdowns\\Loose_life.gif");
+		bitmap_loose_life = load_gif("..\\Sprites\\Animations\\Powerdowns\\Loose_Life.gif");
 		bitmap_reverse = load_gif("..\\Sprites\\Animations\\Powerdowns\\Reverse.gif");
 		bitmap_slow_player = load_gif("..\\Sprites\\Animations\\Powerdowns\\Slow_player.gif");
 		bitmap_strong_block = load_gif("..\\Sprites\\Animations\\Powerdowns\\Strong_block.gif");
@@ -740,7 +740,6 @@ simulate_game(Input *input, f32 dt, b32 *is_running) {
 		draw_rect((v2){-arena.half_size.x-4.f+i*2.5f, arena.half_size.y+2.5f}, (v2){1,1}, 0x00ffff);
 
 	draw_number(score, (v2){arena.half_size.x-10.f, arena.half_size.y+2.5f}, 4.f, 0xffffff);
-	draw_number((int)(1.f/dt), (v2){0, arena.half_size.y+2.5f}, 4.f, 0xffffff);
 
 	if (pressed(BUTTON_ESC)) *is_running = false;
 
@@ -753,6 +752,7 @@ simulate_game(Input *input, f32 dt, b32 *is_running) {
 	if (pressed(BUTTON_DOWN)) dt_multiplier = 10.f;
 	if (released(BUTTON_DOWN)) dt_multiplier = 1.f;
 	if (is_down(BUTTON_UP)) invincibility_time += dt;
+	draw_number((int)(1.f/dt), (v2){0, arena.half_size.y+2.5f}, 4.f, 0xffffff);
 #endif
 
 	draw_messages(dt);
