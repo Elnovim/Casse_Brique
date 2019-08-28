@@ -207,7 +207,6 @@ int __stdcall WinMain(HINSTANCE hInstance,
 					} 
 					else {
 						ShowCursor(true);
-						last_dt = 0;
 						pause = true;
 					}
 				}
