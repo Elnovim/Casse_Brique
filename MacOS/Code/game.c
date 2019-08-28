@@ -463,7 +463,7 @@ simulate_game(Input *input, f64 dt, b32 *is_running) {
 		bitmap_invincibility = load_gif("../Sprites/Animations/Powerups/invincibility.GIF");
 		bitmap_triple_shoot = load_gif("../Sprites/Animations/Powerups/triple_shoot.GIF");
 		bitmap_comet = load_gif("../Sprites/Animations/Powerups/comet.GIF");
-		bitmap_loose_life = load_gif("../Sprites/Animations/Powerdowns/Loose_Life.GIF");
+		bitmap_loose_life = load_gif("../Sprites/Animations/Powerdowns/Loose_life.GIF");
 		bitmap_reverse = load_gif("../Sprites/Animations/Powerdowns/Reverse.GIF");
 		bitmap_slow_player = load_gif("../Sprites/Animations/Powerdowns/Slow_player.GIF");
 		bitmap_strong_block = load_gif("../Sprites/Animations/Powerdowns/Strong_block.GIF");
