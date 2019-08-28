@@ -165,6 +165,7 @@ int __stdcall WinMain(HINSTANCE hInstance,
 								   0);
 
 	HDC hdc = GetDC(window);
+	SetFocus(window);
 
 	Input input = {0};
 
@@ -201,13 +202,13 @@ int __stdcall WinMain(HINSTANCE hInstance,
 
 				case WM_MOUSEMOVE: {
 					GetCursorPos(&mouse_pointer);
-					if (GetActiveWindow() == window) {
+					if (GetFocus() == window) {
 						SetCursorPos(max_w / 2, max_h / 2);
 						pause = false;
 					} 
 					else {
 						ShowCursor(true);
-						//pause = true;
+						pause = true;
 					}
 				}
 
