@@ -29,6 +29,25 @@ global_variable f32 current_time;
 #include "software_rendering.c"
 #include "game.c"
 
+f32 frequency_counter;
+b32 pause;
+
+///////////
+// Time
+inline f32
+os_seconds_elapsed(u64 last_counter) {
+    LARGE_INTEGER current_counter;
+    QueryPerformanceCounter(&current_counter);
+    return (f32)(current_counter.QuadPart - last_counter) / frequency_counter;
+}
+
+inline u64
+os_get_perf_counter() {
+    LARGE_INTEGER current_counter;
+    QueryPerformanceCounter(&current_counter);
+    return current_counter.QuadPart;
+}
+
 // File IO
 
 internal void
@@ -152,13 +171,16 @@ int __stdcall WinMain(HINSTANCE hInstance,
 	LARGE_INTEGER last_counter;
 	QueryPerformanceCounter(&last_counter);
 	f32 last_dt = 0.01666f;
+	f32 target_dt = 0.01666f;
 
 	LARGE_INTEGER frequency_counter_l;
 	QueryPerformanceFrequency(&frequency_counter_l);
 
-	f32 frequency_counter = (f32) frequency_counter_l.QuadPart;
+	frequency_counter = (f32) frequency_counter_l.QuadPart;
 
 	SetCursorPos(max_w / 2, max_h / 2);
+
+	pause = false;
 
 	while(running) {
 
@@ -179,10 +201,14 @@ int __stdcall WinMain(HINSTANCE hInstance,
 
 				case WM_MOUSEMOVE: {
 					GetCursorPos(&mouse_pointer);
-					if (GetActiveWindow() == window) SetCursorPos(max_w / 2, max_h / 2);
+					if (GetActiveWindow() == window) {
+						SetCursorPos(max_w / 2, max_h / 2);
+						pause = false;
+					} 
 					else {
 						ShowCursor(true);
 						last_dt = 0;
+						pause = true;
 					}
 				}
 
@@ -216,7 +242,7 @@ int __stdcall WinMain(HINSTANCE hInstance,
 		input.mouse_dp = sub_v2i((v2i){mouse_pointer.x, mouse_pointer.y}, (v2i){max_w / 2, max_h / 2});
 
 		//Simulation
-		simulate_game(&input, last_dt, &running);
+		if (!pause) simulate_game(&input, last_dt, &running);
 
 		//Render
 		StretchDIBits(hdc,
@@ -242,15 +268,16 @@ int __stdcall WinMain(HINSTANCE hInstance,
 			SetWindowPos(window, HWND_TOP, (max_w-width)/2, (max_h-height)/2, width, height, SWP_SHOWWINDOW);
 		}
 
-		//Get the frame time
-		LARGE_INTEGER current_counter;
-		QueryPerformanceCounter(&current_counter);
+		f32 dt_before_sleep = min(.1f, os_seconds_elapsed(last_counter.QuadPart));
 
-		last_dt = min(.1f, (f32)(current_counter.QuadPart - last_counter.QuadPart) / frequency_counter);
+		int sleep = (int)((target_dt-dt_before_sleep)*1000.f);
+		if (sleep > 1) {
+			Sleep(sleep-1);
+		}
+
+		last_dt = min(.1f, os_seconds_elapsed(last_counter.QuadPart));
 		current_time += last_dt;
-
-		last_counter = current_counter;
-
+		QueryPerformanceCounter(&last_counter);
 	}
 
 }

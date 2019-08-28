@@ -26,6 +26,8 @@ draw_rect_in_pixels(int x0, int y0, int x1, int y1, u32 color) {
 internal void
 draw_transparent_rect_in_pixels(int x0, int y0, int x1, int y1, u32 color, f32 alpha) { 
 
+	alpha = clampf(0.f, alpha, 1.f);
+
 	x0 = clamp(0, x0, render_buffer.width);
 	y0 = clamp(0, y0, render_buffer.height);
 	x1 = clamp(0, x1, render_buffer.width);

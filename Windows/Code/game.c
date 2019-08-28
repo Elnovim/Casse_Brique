@@ -492,15 +492,15 @@ simulate_game(Input *input, f32 dt, b32 *is_running) {
 
 	player.squeeze_factor_dd = -100.f*player.squeeze_factor - 10.f*player.squeeze_factor_d;
 	player.squeeze_factor_d += player.squeeze_factor_dd*dt;
-	player.squeeze_factor += player.squeeze_factor_dd*square(dt)*.5f + player.squeeze_factor_d*dt;
+	player.squeeze_factor += player.squeeze_factor_dd*square(dt)*.5f + player.squeeze_factor_d * dt;
 
-	player.visual_ddp.x = 1500.f*(player.desired_p.x - player.visual_p.x) - 40.f * player.visual_dp.x;
+	player.visual_ddp.x = 500.f*(player.desired_p.x - player.visual_p.x) - 20.f * player.visual_dp.x;
 	player.visual_dp = add_v2(player.visual_dp, mul_v2(player.visual_ddp, dt));
 	player.visual_p = add_v2(player.visual_p, add_v2(mul_v2(player.visual_dp, dt),
 													 mul_v2(player.visual_ddp, square(dt)*.5f)));
 
-	player.half_size.x = player.base_half_size.x + (dt*.5f*absf(player.dp.x)) - player.squeeze_factor;
-	player.half_size.y = max(.5f, player.base_half_size.y - dt*0.01f*absf(player.dp.x) + player.squeeze_factor);
+	player.half_size.x = player.base_half_size.x + (dt*1.f*absf(player.dp.x)) - player.squeeze_factor;
+	player.half_size.y = max(.5f, player.base_half_size.y - dt*0.05f*absf(player.dp.x) + player.squeeze_factor);
 
 
 	for_each_ball {
@@ -695,7 +695,8 @@ simulate_game(Input *input, f32 dt, b32 *is_running) {
 		if (ball->half_size.y < .75f) ball->half_size.y = .75;
 	}
 
-	player.dp.x = (player.desired_p.x - player.visual_p.x) / dt;
+	f32 diff = player.desired_p.x - player.visual_p.x;
+	player.dp.x = diff / dt;
 	player.p = player.desired_p;
 
 	if (invincibility_time > 0.f) invincibility_time -= dt;
