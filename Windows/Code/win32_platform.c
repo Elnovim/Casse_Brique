@@ -207,7 +207,7 @@ int __stdcall WinMain(HINSTANCE hInstance,
 					} 
 					else {
 						ShowCursor(true);
-						pause = true;
+						//pause = true;
 					}
 				}
 
