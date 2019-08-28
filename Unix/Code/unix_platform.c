@@ -133,7 +133,7 @@ int main (int argc, char *argv[]) {
 						mouse_dp_x = 0;
 						mouse_dp_y = 0;
 					} 
-					if (SDL_GetWindowFlags(window) & SDL_WINDOW_MOUSE_FOCUS) SDL_WarpMouseGlobal((int)(max_w/2), (int)(max_h/2));
+					if (SDL_GetWindowFlags(window) & SDL_WINDOW_MOUSE_FOCUS) SDL_WarpMouseInWindow(window, (int)(width/2), (int)(height/2));
 					else {
 						SDL_ShowCursor(SDL_ENABLE);
 						last_dt = 0;
