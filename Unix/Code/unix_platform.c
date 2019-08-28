@@ -163,8 +163,8 @@ int main (int argc, char *argv[]) {
 		if (input.buttons[BUTTON_F5].is_down && input.buttons[BUTTON_F5].changed) {
 
 			display_size_ind = (display_size_ind + 1) % DISPLAY_SIZE_COUNT;
-			int width = min(max_w, display_sizes[display_size_ind][0]);
-			int height = min(max_h, display_sizes[display_size_ind][1]);
+			width = min(max_w, display_sizes[display_size_ind][0]);
+			height = min(max_h, display_sizes[display_size_ind][1]);
 			if (width >= max_w || height >= max_h) display_size_ind = DISPLAY_SIZE_COUNT - 1;
 
 			render_buffer.width = width;
