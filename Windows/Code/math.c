@@ -84,6 +84,13 @@ map_into_range_normalized(f32 min, f32 val, f32 max) {
 	return clampf(0, (val-min)/range, 1);
 }
 
+inline f32
+move_towards(f32 val, f32 target, f32 speed) {
+	if (val > target) return clampf(target, val-speed, val);
+	if (val < target) return clampf(val, val+speed, target);
+	return val;
+}
+
 // Vector 2
 
 struct {

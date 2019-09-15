@@ -18,6 +18,8 @@ typedef double f64;
 typedef int b32;
 
 #define MAX_U32 UINT32_MAX
+#define MIN_S16 INT16_MIN
+#define MAX_S16 INT16_MAX
 
 #define true 1
 #define false 0

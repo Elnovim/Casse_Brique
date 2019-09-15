@@ -1,22 +1,11 @@
 #include "utils.c"
 #include "math.c"
 #include "string.c"
-
-
 #include "platform_common.c"
 
 #include <windows.h>
 
-
-struct {
-	// Platform non-specific part
-	int width, height;
-	u32 *pixels;
-
-	// Platform specific part
-	BITMAPINFO bitmap_info;
-
-} typedef Render_buffer;
+BITMAPINFO w32_bitmap_info;
 
 global_variable Render_buffer render_buffer;
 global_variable f32 current_time;
@@ -26,27 +15,14 @@ global_variable f32 current_time;
 #define STBI_NO_FAILURE_STRINGS
 #include "stb_image.h"
 
+#include "wav_importer.h"
+
 #include "software_rendering.c"
+#include "audio.c"
 #include "game.c"
 
 f32 frequency_counter;
 b32 pause;
-
-///////////
-// Time
-inline f32
-os_seconds_elapsed(u64 last_counter) {
-    LARGE_INTEGER current_counter;
-    QueryPerformanceCounter(&current_counter);
-    return (f32)(current_counter.QuadPart - last_counter) / frequency_counter;
-}
-
-inline u64
-os_get_perf_counter() {
-    LARGE_INTEGER current_counter;
-    QueryPerformanceCounter(&current_counter);
-    return current_counter.QuadPart;
-}
 
 // File IO
 
@@ -82,7 +58,293 @@ read_file(char *file_path) {
 
 }
 
-LRESULT window_callback (HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
+///////////////////////
+// Multi-Threading
+
+struct {
+	void *data;
+	Os_Job_Callback *callback;
+} typedef Os_Job;
+
+struct Os_Job_Queue{
+	// Platform independent part
+	u32 volatile next_entry_to_read;
+	u32 volatile next_entry_to_write;
+	Os_Job entries[32];
+
+	// Platform dependent part
+	HANDLE semaphore;
+} typedef Os_Job_Queue;
+
+internal b32
+win32_do_next_queue_job(Os_Job_Queue *queue) {
+	u32 volatile original_next = queue->next_entry_to_read;
+	u32 volatile new_entry_to_read = (original_next+1) % array_count(queue->entries);
+
+	if (original_next != queue->next_entry_to_write) {
+
+		u32 interlocked_value = InterlockedCompareExchange((volatile long*)&queue->next_entry_to_read, new_entry_to_read, original_next);
+		if (interlocked_value == original_next) {
+			Os_Job *entry = queue->entries + interlocked_value;
+			entry->callback(queue, entry->data);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+DWORD WINAPI win32_thread_proc(void *data) {
+	Os_Job_Queue *queue = (Os_Job_Queue*)data;
+
+	for (;;) {
+		if (win32_do_next_queue_job(queue)) {
+			WaitForSingleObjectEx(queue->semaphore, INFINITE, FALSE);
+		}
+	}
+}
+
+internal void
+win32_create_queue(Os_Job_Queue *queue, int number_of_thread) {
+
+	zero_struct(*queue);
+	queue->semaphore = CreateSemaphoreExA(0, 0, number_of_thread, 0, 0, SEMAPHORE_ALL_ACCESS);
+
+
+	for (int i = 0; i < number_of_thread; ++i) {
+		HANDLE thread = CreateThread(0, 0, win32_thread_proc, queue, 0, 0);
+		CloseHandle(thread);
+	}
+}
+
+internal void
+os_add_job_to_queue(Os_Job_Queue *queue, Os_Job_Callback *callback, void *data) {
+	u32 volatile new_next_entry_to_write =(queue->next_entry_to_write + 1)%array_count(queue->entries);
+	assert(new_next_entry_to_write != queue->next_entry_to_read);
+
+	Os_Job *entry = queue->entries + queue->next_entry_to_write;
+	entry->callback = callback;
+	entry->data = data;
+	_WriteBarrier();
+	queue->next_entry_to_write = new_next_entry_to_write;
+	ReleaseSemaphore(queue->semaphore, 1, 0);
+}
+
+OS_JOB_CALLBACK(print_job) {
+	print_int((int)data);
+}
+
+///////////
+// Time
+inline f32
+os_seconds_elapsed(u64 last_counter) {
+    LARGE_INTEGER current_counter;
+    QueryPerformanceCounter(&current_counter);
+    return (f32)(current_counter.QuadPart - last_counter) / frequency_counter;
+}
+
+inline u64
+os_get_perf_counter() {
+    LARGE_INTEGER current_counter;
+    QueryPerformanceCounter(&current_counter);
+    return current_counter.QuadPart;
+}
+
+
+////////////////////////
+// Audio
+
+#include <dsound.h>
+
+typedef HRESULT Direct_Sound_Create (LPGUID lpGuid, LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter);
+
+global_variable LPDIRECTSOUNDBUFFER win32_sound_buffer;
+
+global_variable Game_Sound_Buffer sound_buffer;
+
+internal void
+win32_init_audio(HWND window) {
+	HMODULE dsound_dll = LoadLibraryA("dsound.dll");
+	if (!dsound_dll) {
+		assert(0);
+		return;
+	}
+
+	Direct_Sound_Create *direct_sound_create = (Direct_Sound_Create*)GetProcAddress(dsound_dll, "DirectSoundCreate");
+	if (!direct_sound_create) {
+		assert(0);
+		return;
+	}
+
+	LPDIRECTSOUND direct_sound = 0;
+	if (SUCCEEDED(direct_sound_create(0, &direct_sound, 0))) {
+
+		if (SUCCEEDED(direct_sound->lpVtbl->SetCooperativeLevel(direct_sound, window, DSSCL_PRIORITY))) {
+			
+			// Sound spec
+
+			sound_buffer.channel_count = 2;
+			sound_buffer.samples_per_second = 44100;
+			sound_buffer.bytes_per_sample = sound_buffer.channel_count*sizeof(s16);
+			sound_buffer.size = sound_buffer.samples_per_second*sound_buffer.bytes_per_sample;
+
+			DSBUFFERDESC buffer_description = {0};
+			buffer_description.dwSize = sizeof(buffer_description);
+			buffer_description.dwFlags = DSBCAPS_PRIMARYBUFFER;
+
+			LPDIRECTSOUNDBUFFER primary_buffer;
+
+			direct_sound->lpVtbl->CreateSoundBuffer(direct_sound, &buffer_description, &primary_buffer, 0);
+
+			WAVEFORMATEX wave_format = {0};
+			wave_format.wFormatTag = WAVE_FORMAT_PCM;
+			wave_format.nChannels = (WORD)sound_buffer.channel_count;
+			wave_format.nSamplesPerSec = sound_buffer.samples_per_second;
+			wave_format.wBitsPerSample = 16;
+			wave_format.nBlockAlign = wave_format.nChannels * wave_format.wBitsPerSample/8;
+			wave_format.nAvgBytesPerSec = wave_format.nSamplesPerSec * wave_format.nBlockAlign;
+
+
+			buffer_description = (DSBUFFERDESC){0};
+			buffer_description.dwSize = sizeof(buffer_description);
+			buffer_description.dwFlags = DSBCAPS_GLOBALFOCUS;
+			buffer_description.dwBufferBytes = sound_buffer.size;
+			buffer_description.lpwfxFormat = &wave_format;
+
+			if (SUCCEEDED(direct_sound->lpVtbl->CreateSoundBuffer(direct_sound, &buffer_description, &win32_sound_buffer, 0))); //Success
+			else invalid_code_path;
+
+
+		}
+		else invalid_code_path;
+	}
+	else invalid_code_path;
+}
+
+internal void
+win32_clear_sound_bufer() {
+
+	void *region_1;
+	DWORD region_1_size;
+	void *region_2;
+	DWORD region_2_size;
+
+	if (SUCCEEDED(win32_sound_buffer->lpVtbl->Lock(win32_sound_buffer, 0, sound_buffer.size, &region_1, &region_1_size, &region_2, &region_2_size, 0))) {
+
+		s16 *at = region_1;
+
+		DWORD region_1_sample_count = region_1_size/sound_buffer.bytes_per_sample;
+		for (DWORD i = 0; i < region_1_sample_count; ++i) {
+
+			*at++ = 0;
+			*at++ = 0;
+		}
+
+		at = region_2;
+
+		DWORD region_2_sample_count = region_2_size/sound_buffer.bytes_per_sample;
+		for (DWORD i = 0; i < region_2_sample_count; ++i) {
+
+			*at++ = 0;
+			*at++ = 0;
+		}
+
+		if (!SUCCEEDED(win32_sound_buffer->lpVtbl->Unlock(win32_sound_buffer, region_1, region_1_size, region_2, region_2_size))) invalid_code_path;
+	}
+	else invalid_code_path;
+}
+
+internal void
+win32_fill_sound_bufer(DWORD byte_to_lock, DWORD bytes_to_write) {
+
+	void *region_1;
+	DWORD region_1_size;
+	void *region_2;
+	DWORD region_2_size;
+
+	if (SUCCEEDED(win32_sound_buffer->lpVtbl->Lock(win32_sound_buffer, byte_to_lock, bytes_to_write, &region_1, &region_1_size, &region_2, &region_2_size, 0))) {
+
+		s16 *dest = region_1;
+		s16 *source = sound_buffer.samples;
+
+		DWORD region_1_sample_count = region_1_size/sound_buffer.bytes_per_sample;
+		for (DWORD i = 0; i < region_1_sample_count; ++i) {
+
+			*dest++ = *source++;
+			*dest++ = *source++;
+
+			sound_buffer.running_sample_index++;
+		}
+
+		dest = region_2;
+
+		DWORD region_2_sample_count = region_2_size/sound_buffer.bytes_per_sample;
+		for (DWORD i = 0; i < region_2_sample_count; ++i) {
+
+			*dest++ = *source++;
+			*dest++ = *source++;
+
+			sound_buffer.running_sample_index++;
+		}
+
+		if (!SUCCEEDED(win32_sound_buffer->lpVtbl->Unlock(win32_sound_buffer, region_1, region_1_size, region_2, region_2_size))) invalid_code_path;
+	}
+	else invalid_code_path;
+
+}
+
+OS_JOB_CALLBACK(win32_update_audio) {
+	f32 target_dt = .01666f;
+
+	LARGE_INTEGER last_counter;
+	QueryPerformanceCounter(&last_counter);
+
+	for(;;) {
+		DWORD safety_bytes = (int)((f32)sound_buffer.samples_per_second*(f32)sound_buffer.bytes_per_sample*target_dt); // One frame of safety
+		safety_bytes -= safety_bytes % sound_buffer.bytes_per_sample;
+
+		DWORD play_cursor, write_cursor;
+		win32_sound_buffer->lpVtbl->GetCurrentPosition(win32_sound_buffer, &play_cursor, &write_cursor);
+		
+		DWORD byte_to_lock = (sound_buffer.running_sample_index*sound_buffer.bytes_per_sample) % sound_buffer.size;
+		
+		DWORD expected_bytes_per_tick = (DWORD)((f32)sound_buffer.samples_per_second*(f32)sound_buffer.bytes_per_sample*target_dt);
+		expected_bytes_per_tick -= expected_bytes_per_tick % sound_buffer.bytes_per_sample;
+
+		DWORD expected_boundary_byte = play_cursor + expected_bytes_per_tick;
+		
+		DWORD safe_write_buffer = write_cursor;
+		if (safe_write_buffer < play_cursor) safe_write_buffer += sound_buffer.size;
+		else safe_write_buffer += safety_bytes;
+
+		DWORD target_cursor;
+		if (safe_write_buffer < expected_boundary_byte) target_cursor = expected_boundary_byte + expected_bytes_per_tick;
+		else target_cursor = write_cursor + expected_bytes_per_tick + safety_bytes;
+		target_cursor %= sound_buffer.size;
+
+		DWORD bytes_to_write;
+		if (byte_to_lock > target_cursor) bytes_to_write = sound_buffer.size - byte_to_lock + target_cursor;
+		else bytes_to_write = target_cursor - byte_to_lock;
+
+		if (bytes_to_write) {
+			sound_buffer.samples_to_write = bytes_to_write / sound_buffer.bytes_per_sample;
+			assert(bytes_to_write % 4 == 0);
+			update_audio(&sound_buffer, target_dt);
+			win32_fill_sound_bufer(byte_to_lock, bytes_to_write);
+		}
+
+		f32 elapsed_time = os_seconds_elapsed(last_counter.QuadPart);
+		QueryPerformanceCounter(&last_counter);
+		int sleep = max(0, (int)(1000.f*(target_dt - elapsed_time))-1);
+		Sleep(sleep);
+	}
+}
+
+///////////////////////
+// Callback and Main
+
+internal LRESULT 
+window_callback (HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
 
 	LRESULT result = 0;
 
@@ -109,12 +371,12 @@ LRESULT window_callback (HWND window, UINT message, WPARAM w_param, LPARAM l_par
 												PAGE_READWRITE);
 
 			// Fill the bitmap info
-			render_buffer.bitmap_info.bmiHeader.biSize = sizeof(render_buffer.bitmap_info.bmiHeader);
-			render_buffer.bitmap_info.bmiHeader.biWidth = render_buffer.width;
-			render_buffer.bitmap_info.bmiHeader.biHeight = render_buffer.height;
-			render_buffer.bitmap_info.bmiHeader.biPlanes = 1;
-			render_buffer.bitmap_info.bmiHeader.biBitCount = 32;
-			render_buffer.bitmap_info.bmiHeader.biCompression = BI_RGB;
+			w32_bitmap_info.bmiHeader.biSize = sizeof(w32_bitmap_info.bmiHeader);
+			w32_bitmap_info.bmiHeader.biWidth = render_buffer.width;
+			w32_bitmap_info.bmiHeader.biHeight = render_buffer.height;
+			w32_bitmap_info.bmiHeader.biPlanes = 1;
+			w32_bitmap_info.bmiHeader.biBitCount = 32;
+			w32_bitmap_info.bmiHeader.biCompression = BI_RGB;
 		} break;
 
 		default: {
@@ -179,6 +441,15 @@ int __stdcall WinMain(HINSTANCE hInstance,
 
 	frequency_counter = (f32) frequency_counter_l.QuadPart;
 
+	win32_init_audio(window);
+	win32_clear_sound_bufer();
+	if (!SUCCEEDED(win32_sound_buffer->lpVtbl->Play(win32_sound_buffer, 0, 0, DSBPLAY_LOOPING))) invalid_code_path;
+
+	sound_buffer.samples = VirtualAlloc(0, sound_buffer.size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+	Os_Job_Queue audio_queue;
+	win32_create_queue(&audio_queue, 1);
+	os_add_job_to_queue(&audio_queue, win32_update_audio, (void *)0);
+
 	SetCursorPos(max_w / 2, max_h / 2);
 
 	pause = false;
@@ -242,8 +513,9 @@ int __stdcall WinMain(HINSTANCE hInstance,
 		input.mouse_dp = sub_v2i((v2i){mouse_pointer.x, mouse_pointer.y}, (v2i){max_w / 2, max_h / 2});
 
 		//Simulation
-		if (!pause) simulate_game(&input, last_dt, &running);
+		if (!pause) update_game(&input, last_dt, &running);
 
+		
 		//Render
 		StretchDIBits(hdc,
 					  0,
@@ -255,7 +527,7 @@ int __stdcall WinMain(HINSTANCE hInstance,
 					  render_buffer.width,
 					  render_buffer.height,
 					  render_buffer.pixels,
-					  &render_buffer.bitmap_info,
+					  &w32_bitmap_info,
 					  DIB_RGB_COLORS,
 					  SRCCOPY);
 

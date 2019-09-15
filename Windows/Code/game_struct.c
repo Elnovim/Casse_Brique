@@ -33,6 +33,7 @@ struct {
 	v2 visual_ddp;
 
 	f32 squeeze_factor;
+
 	f32 squeeze_factor_d;
 	f32 squeeze_factor_dd;
 
@@ -41,6 +42,9 @@ struct {
 	f32 twinkling_t;
 	f32 twinkling_target;
 	u32 twinkling_number;
+
+	struct Playing_Sound *movement_sound;
+
 } typedef Player;
 
 struct {
@@ -97,6 +101,10 @@ struct {
 
 Bitmap bitmap_invincibility, bitmap_triple_shoot, bitmap_comet;
 Bitmap bitmap_loose_life, bitmap_strong_block, bitmap_reverse, bitmap_slow_player;
+Bitmap bitmap_block_strong;
+
+Loaded_Sound music;
+Loaded_Sound sound_sine;
 
 #define BLOCK_RIVAL_A 0x1
 #define BLOCK_RIVAL_B 0x2
@@ -112,8 +120,6 @@ struct {
 	u32 flags;
 	Coll_Kind coll;
 } typedef Block;
-
-Bitmap bitmap_block_strong;
 
 enum {
 	L01_NORMAL,

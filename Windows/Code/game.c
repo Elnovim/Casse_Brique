@@ -1,6 +1,7 @@
 #include "game_struct.c"
 #include "macros.c"
 #include "console.c"
+#include "particle.c"
 
 internal Block*
 get_next_available_block() {
@@ -21,29 +22,7 @@ get_next_available_ball() {
 	return 0;
 }
 
-inline Particle*
-spawn_particle(v2 p, f32 dp_scale, v2 half_size, f32 angle, f32 life, f32 life_d, u32 color) {
-	Particle *particle = particles + next_particle++;
-	if (next_particle >= array_count(particles)) next_particle = 0;
-
-	particle->p = p;
-	particle->dp = (v2){random_bilateral()*dp_scale, random_bilateral()*dp_scale};
-	particle->half_size = half_size;
-	particle->life = life;
-	particle->life_d = life_d;
-	particle->color = color;
-	particle->angle = angle;
-	return particle;
-}
-
-inline void
-spawn_particle_explosion(unsigned int count, v2 p, f32 dp_scale, f32 base_size, f32 base_life, u32 color) {
-	for (unsigned int i = 0; i < count; ++i) {
-		base_size += random_bilateral()*.1f*base_size;
-		base_life += random_bilateral()*.1f*base_size; //A VOIR
-		Particle *particle = spawn_particle(p, dp_scale, (v2){base_size, base_size}, random_f32_in_range(0, 360), base_life, 1.f, color);
-	}
-}
+#include "collectible.c"
 
 inline void
 increase_ball_size(Ball *ball) {
@@ -388,38 +367,6 @@ restart_game() {
 }
 
 internal void
-spawn_collectible(v2 p, Coll_Kind kind) {
-	Coll *coll = colls + next_coll++;
-	if (next_coll >= array_count(colls)) next_coll = 0;
-	coll->p = p;
-	coll->kind = kind;
-	coll->half_size = (v2){3, 3};
-	coll->frame_t = 0.f;
-}
-
-internal void
-spawn_triple_shot() {
-
-	for (int i = 0; i < 2; ++i) {
-		Ball *ball = get_next_available_ball();
-
-		ball->base_speed = 50;
-		ball->dp.x = (1-(i%2))*45.f;
-		ball->dp.y = ball->base_speed;
-		ball->p.x = player.p.x;
-		ball->p.y = player.p.y + player.half_size.y;
-		ball->half_size = balls[0].half_size;
-		ball->speed_multiplier = balls[0].speed_multiplier;
-		ball->desired_p = ball->p;
-		ball->collision_test_p = ball->p;
-		ball->flags |= BALL_ACTIVE | BALL_DESTROYED_ON_DP_Y_DOWN | BALL_RIVAL_A;
-		ball->next_trail = 0;
-		ball->trail_spawner = .005f;
-		ball->trail_spawner_t = 0.f;
-	}
-}
-
-internal void
 test_for_win_condition() {
 	if (blocks_destroyed == num_blocks) restart_game(++current_level);
 }
@@ -449,7 +396,7 @@ block_destroyed(Block *block, v2 ball_p) {
 Bitmap bitmap;
 
 internal void
-simulate_game(Input *input, f32 dt, b32 *is_running) {
+update_game(Input *input, f32 dt, b32 *is_running) {
 
 	dt *= dt_multiplier;
 
@@ -466,6 +413,12 @@ simulate_game(Input *input, f32 dt, b32 *is_running) {
 		bitmap_slow_player = load_gif("..\\Sprites\\Animations\\Powerdowns\\Slow_player.gif");
 		bitmap_strong_block = load_gif("..\\Sprites\\Animations\\Powerdowns\\Strong_block.gif");
 		bitmap_block_strong = load_gif("..\\Sprites\\Blocks\\Block_strong.gif");
+
+		music = load_wav("..\\Sounds\\Musics\\test.wav");
+		sound_sine = load_wav("..\\Sounds\\Effects\\sine.wav");
+		play_sound(&music, true);
+		player.movement_sound = play_sound(&sound_sine, true);
+		player.movement_sound->volume = 0.f;
 	}
 
 	
@@ -709,7 +662,7 @@ simulate_game(Input *input, f32 dt, b32 *is_running) {
 	else if (reverse_time > 0) player.color = 0x7f00ff;
 	else if (slow_player_t > 0) player.color = 0x489000;
 	if (!player.twinkle) draw_rect_subpixel(player.visual_p, player.half_size, player.color);
-
+	
 	if (player.is_twinkling) {
 		player.twinkling_t += dt;
 		if (player.twinkling_t >= player.twinkling_target) {
