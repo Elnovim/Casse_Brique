@@ -23,7 +23,7 @@ Sprites and animations done under Pixaki apps - iOs
 
 **Build and run :**
 
-Move the "Sprites" directory in the OS directory that fits the environnement who want to play the game ("Windows" or "Unix" directory)
+Move the "Sprites" and "Sounds" directories in the OS directory that fits the environnement who want to play the game ("Windows", "Unix" or "MacOS" directory  (the sound will be soon developed for these two last OSs))
 
 1. "Windows" directory to build and play the game under Window OS (tested under Windowd 10)
    
