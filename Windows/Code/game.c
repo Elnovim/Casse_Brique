@@ -347,7 +347,7 @@ restart_game() {
 		} break;
 
 		case L04_PONG: {
-			create_aligned_blocks(10, 3, (v2){2, 2}, 0.05f, 0.05f, -30.f, 2.f);
+			create_aligned_blocks(10, 3, (v2){2, 2}, 0.05f, 0.05f, -32.f, 2.f);
 			level_state.pong.half_size = (v2){(2*2 + 0.05f) * 10/2, (2*2 + 0.05f) * 3/2};
 		} break;
 
@@ -396,7 +396,7 @@ block_destroyed(Block *block, v2 ball_p) {
 Bitmap bitmap;
 
 internal void
-update_game(Input *input, f32 dt, b32 *is_running) {
+update_game(f32 dt) {
 
 	dt *= dt_multiplier;
 
@@ -425,7 +425,7 @@ update_game(Input *input, f32 dt, b32 *is_running) {
 
 	f32 speed_multiplier = 1.f;
 	if (slow_player_t > 0) speed_multiplier = .5f;
-	f32 mouse_world_dp_x = speed_multiplier * clampf(-10.f, pixels_dp_to_world(input->mouse_dp).x, 10.f);
+	f32 mouse_world_dp_x = speed_multiplier * clampf(-10.f, pixels_dp_to_world(input_game.mouse_dp).x, 10.f);
 	if (reverse_time > 0 ) player.desired_p.x = player.p.x - mouse_world_dp_x;
 	else player.desired_p.x = player.p.x + mouse_world_dp_x;
 
@@ -694,8 +694,6 @@ update_game(Input *input, f32 dt, b32 *is_running) {
 		draw_rect((v2){-arena.half_size.x-4.f+i*2.5f, arena.half_size.y+2.5f}, (v2){1,1}, 0x00ffff);
 
 	draw_number(score, (v2){arena.half_size.x-10.f, arena.half_size.y+2.5f}, 4.f, 0xffffff);
-
-	if (pressed(BUTTON_ESC)) *is_running = false;
 
 	if (pressed(BUTTON_LEFT)) restart_game(--current_level);
 	if (pressed(BUTTON_RIGHT)) restart_game(++current_level);

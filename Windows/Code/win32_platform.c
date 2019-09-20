@@ -9,6 +9,7 @@ BITMAPINFO w32_bitmap_info;
 
 global_variable Render_buffer render_buffer;
 global_variable f32 current_time;
+global_variable Input input_game = {0};
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_STDIO
@@ -429,8 +430,6 @@ int __stdcall WinMain(HINSTANCE hInstance,
 	HDC hdc = GetDC(window);
 	SetFocus(window);
 
-	Input input = {0};
-
 	LARGE_INTEGER last_counter;
 	QueryPerformanceCounter(&last_counter);
 	f32 last_dt = 0.01666f;
@@ -463,7 +462,7 @@ int __stdcall WinMain(HINSTANCE hInstance,
 		//Input
 
 		for (int i = 0; i < BUTTON_COUNT; ++i){
-			input.buttons[i].changed = false;
+			input_game.buttons[i].changed = false;
 		}
 
 		MSG message;
@@ -475,7 +474,6 @@ int __stdcall WinMain(HINSTANCE hInstance,
 					GetCursorPos(&mouse_pointer);
 					if (GetFocus() == window) {
 						SetCursorPos(max_w / 2, max_h / 2);
-						pause = false;
 					} 
 					else {
 						ShowCursor(true);
@@ -500,6 +498,7 @@ int __stdcall WinMain(HINSTANCE hInstance,
 					process_button(VK_DOWN, BUTTON_DOWN);
 					process_button(VK_ESCAPE, BUTTON_ESC);
 					process_button(VK_F5, BUTTON_F5);
+					process_button(0x50, BUTTON_P);
 
 				} break;
 
@@ -510,10 +509,13 @@ int __stdcall WinMain(HINSTANCE hInstance,
 			}
 		}
 
-		input.mouse_dp = sub_v2i((v2i){mouse_pointer.x, mouse_pointer.y}, (v2i){max_w / 2, max_h / 2});
+		if (pressed(BUTTON_ESC)) running = false;
+		if (pressed(BUTTON_P)) pause = !pause;
+
+		input_game.mouse_dp = sub_v2i((v2i){mouse_pointer.x, mouse_pointer.y}, (v2i){max_w / 2, max_h / 2});
 
 		//Simulation
-		if (!pause) update_game(&input, last_dt, &running);
+		if (!pause) update_game(last_dt);
 
 		
 		//Render
@@ -531,7 +533,7 @@ int __stdcall WinMain(HINSTANCE hInstance,
 					  DIB_RGB_COLORS,
 					  SRCCOPY);
 
-		if (input.buttons[BUTTON_F5].is_down && input.buttons[BUTTON_F5].changed) {
+		if (input_game.buttons[BUTTON_F5].is_down && input_game.buttons[BUTTON_F5].changed) {
 
 			display_size_ind = (display_size_ind + 1) % DISPLAY_SIZE_COUNT;
 			width = min(max_w, display_sizes[display_size_ind][0]);
